@@ -1,0 +1,23 @@
+[package]
+name = "browser-connector"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+web-page-manager-core = { path = "../core" }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+
+# HTTP client for browser communication
+reqwest = { version = "0.11", features = ["json"] }
+
+# WebSocket for CDP
+tokio-tungstenite = "0.21"
+futures-util = "0.3"
+
+# Async traits
+async-trait = "0.1"

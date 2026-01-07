@@ -1,0 +1,21 @@
+[package]
+name = "web-page-manager-core"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+
+# FFI support
+libc = "0.2"
+
+[lib]
+name = "web_page_manager_core"
+crate-type = ["cdylib", "rlib"]
