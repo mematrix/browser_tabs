@@ -220,3 +220,206 @@ pub struct Hotkey {
     pub action: String,
     pub description: String,
 }
+
+/// History entry for closed tabs
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HistoryEntry {
+    pub id: HistoryId,
+    pub page_info: UnifiedPageInfo,
+    pub browser_type: BrowserType,
+    pub tab_id: Option<TabId>,
+    pub closed_at: DateTime<Utc>,
+    pub session_info: Option<SessionInfo>,
+}
+
+/// Session information for history entries
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SessionInfo {
+    pub session_id: String,
+    pub window_id: Option<String>,
+    pub tab_index: Option<u32>,
+    pub scroll_position: Option<u32>,
+}
+
+/// Filter for querying history entries
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct HistoryFilter {
+    pub browser_type: Option<BrowserType>,
+    pub from_date: Option<DateTime<Utc>>,
+    pub to_date: Option<DateTime<Utc>>,
+    pub url_pattern: Option<String>,
+    pub title_pattern: Option<String>,
+    pub limit: Option<usize>,
+    pub offset: Option<usize>,
+}
+
+/// Retention policy for automatic history cleanup
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RetentionPolicy {
+    pub max_age_days: u32,
+    pub max_entries: usize,
+    pub preserve_important: bool,
+    pub importance_threshold: f32,
+}
+
+impl Default for RetentionPolicy {
+    fn default() -> Self {
+        Self {
+            max_age_days: 30,
+            max_entries: 10000,
+            preserve_important: true,
+            importance_threshold: 0.7,
+        }
+    }
+}
+
+/// Match information for tab-bookmark associations
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MatchInfo {
+    pub tab_id: TabId,
+    pub bookmark_id: BookmarkId,
+    pub match_type: MatchType,
+    pub confidence: f32,
+    pub matched_at: DateTime<Utc>,
+}
+
+/// Type of match between tab and bookmark
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum MatchType {
+    ExactUrl,
+    SameDomain,
+    SimilarContent,
+    UserDefined,
+}
+
+/// Result of bookmark analysis
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BookmarkAnalysisResult {
+    pub bookmark: BookmarkInfo,
+    pub accessibility_status: AccessibilityStatus,
+    pub content_summary: Option<ContentSummary>,
+    pub page_metadata: Option<PageMetadata>,
+    pub analyzed_at: DateTime<Utc>,
+    pub analysis_duration_ms: u64,
+}
+
+/// Page metadata extracted from web pages
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PageMetadata {
+    pub title: String,
+    pub description: Option<String>,
+    pub author: Option<String>,
+    pub published_date: Option<DateTime<Utc>>,
+    pub modified_date: Option<DateTime<Utc>>,
+    pub language: Option<String>,
+    pub og_image: Option<String>,
+    pub canonical_url: Option<String>,
+    pub site_name: Option<String>,
+}
+
+/// Group of duplicate bookmarks
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DuplicateGroup {
+    pub id: Uuid,
+    pub bookmarks: Vec<BookmarkInfo>,
+    pub duplicate_type: DuplicateType,
+    pub similarity_score: f32,
+    pub suggested_keep: Option<BookmarkId>,
+}
+
+/// Type of duplication detected
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum DuplicateType {
+    ExactUrl,
+    SameContent,
+    SimilarTitle,
+    RedirectChain,
+}
+
+/// Content analysis result from AI processor
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ContentAnalysis {
+    pub summary: ContentSummary,
+    pub topics: Vec<TopicInfo>,
+    pub entities: Vec<String>,
+    pub sentiment: Option<SentimentInfo>,
+    pub structure: PageStructure,
+}
+
+/// Topic information extracted from content
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TopicInfo {
+    pub name: String,
+    pub confidence: f32,
+    pub keywords: Vec<String>,
+}
+
+/// Sentiment analysis result
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SentimentInfo {
+    pub overall: SentimentType,
+    pub score: f32,
+}
+
+/// Sentiment type classification
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum SentimentType {
+    Positive,
+    Negative,
+    Neutral,
+    Mixed,
+}
+
+/// Page structure analysis
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PageStructure {
+    pub has_navigation: bool,
+    pub has_sidebar: bool,
+    pub has_comments: bool,
+    pub main_content_ratio: f32,
+    pub heading_count: u32,
+    pub image_count: u32,
+    pub link_count: u32,
+}
+
+/// Group suggestion from AI
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GroupSuggestion {
+    pub suggested_name: String,
+    pub suggested_description: String,
+    pub page_ids: Vec<Uuid>,
+    pub group_type: GroupType,
+    pub confidence: f32,
+    pub reasoning: String,
+}
+
+/// Category information for content classification
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CategoryInfo {
+    pub primary_category: String,
+    pub secondary_categories: Vec<String>,
+    pub confidence: f32,
+}
+
+/// Relevance score between two pieces of content
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RelevanceScore {
+    pub score: f32,
+    pub factors: Vec<RelevanceFactor>,
+}
+
+/// Factor contributing to relevance score
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RelevanceFactor {
+    pub name: String,
+    pub weight: f32,
+    pub contribution: f32,
+}
+
+/// Browser information for unified page info
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BrowserInfo {
+    pub browser_type: BrowserType,
+    pub version: Option<String>,
+    pub profile_name: Option<String>,
+}

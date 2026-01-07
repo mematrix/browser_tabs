@@ -151,7 +151,105 @@ pub enum WebPageManagerError {
         #[from]
         source: SystemError,
     },
+    
+    #[error("Bookmark analysis error: {source}")]
+    BookmarkAnalysis {
+        #[from]
+        source: BookmarkAnalysisError,
+    },
+    
+    #[error("History error: {source}")]
+    History {
+        #[from]
+        source: HistoryError,
+    },
+    
+    #[error("Cross-browser error: {source}")]
+    CrossBrowser {
+        #[from]
+        source: CrossBrowserError,
+    },
+    
+    #[error("Archive error: {source}")]
+    Archive {
+        #[from]
+        source: ArchiveError,
+    },
 }
 
 /// Result type alias for convenience
 pub type Result<T> = std::result::Result<T, WebPageManagerError>;
+
+/// Bookmark analysis related errors
+#[derive(Debug, Error)]
+pub enum BookmarkAnalysisError {
+    #[error("Bookmark not found: {bookmark_id}")]
+    BookmarkNotFound { bookmark_id: String },
+    
+    #[error("Content extraction failed for URL: {url}")]
+    ContentExtractionFailed { url: String },
+    
+    #[error("Batch analysis failed: {processed}/{total} bookmarks processed")]
+    BatchAnalysisFailed { processed: usize, total: usize },
+    
+    #[error("Duplicate detection failed: {reason}")]
+    DuplicateDetectionFailed { reason: String },
+}
+
+/// History management related errors
+#[derive(Debug, Error)]
+pub enum HistoryError {
+    #[error("History entry not found: {history_id}")]
+    EntryNotFound { history_id: String },
+    
+    #[error("Failed to save history entry: {reason}")]
+    SaveFailed { reason: String },
+    
+    #[error("Failed to restore tab: {reason}")]
+    RestoreFailed { reason: String },
+    
+    #[error("Cleanup operation failed: {reason}")]
+    CleanupFailed { reason: String },
+}
+
+/// Cross-browser operation related errors
+#[derive(Debug, Error)]
+pub enum CrossBrowserError {
+    #[error("Migration failed from {source_browser:?} to {target_browser:?}: {reason}")]
+    MigrationFailed {
+        source_browser: BrowserType,
+        target_browser: BrowserType,
+        reason: String,
+    },
+    
+    #[error("Session state could not be preserved: {reason}")]
+    SessionStateError { reason: String },
+    
+    #[error("Rollback failed: {reason}")]
+    RollbackFailed { reason: String },
+    
+    #[error("Operation not supported between {source_browser:?} and {target_browser:?}")]
+    OperationNotSupported {
+        source_browser: BrowserType,
+        target_browser: BrowserType,
+    },
+}
+
+/// Archive related errors
+#[derive(Debug, Error)]
+pub enum ArchiveError {
+    #[error("Archive not found: {archive_id}")]
+    ArchiveNotFound { archive_id: String },
+    
+    #[error("Content extraction failed: {reason}")]
+    ExtractionFailed { reason: String },
+    
+    #[error("Media download failed: {url}")]
+    MediaDownloadFailed { url: String },
+    
+    #[error("Storage limit exceeded: {current_mb}MB > {limit_mb}MB")]
+    StorageLimitExceeded { current_mb: u64, limit_mb: u64 },
+    
+    #[error("Archive corrupted: {archive_id}")]
+    ArchiveCorrupted { archive_id: String },
+}

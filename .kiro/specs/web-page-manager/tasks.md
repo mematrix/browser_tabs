@@ -9,7 +9,7 @@
   - _需求: 4.1, 5.1, 5.2, 8.1_
 
 - [ ] 2. 实现数据模型和存储层
-- [ ] 2.1 创建核心数据结构和类型定义
+- [x] 2.1 创建核心数据结构和类型定义
   - 实现UnifiedPageInfo、ContentSummary、SmartGroup等核心数据模型
   - 定义BrowserType、TabInfo、BookmarkInfo等浏览器相关类型
   - 创建错误类型和结果处理机制
