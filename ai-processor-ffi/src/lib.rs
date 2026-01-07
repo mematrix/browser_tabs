@@ -1,4 +1,5 @@
-use web_page_manager_core::*;
+#![allow(unused_imports)]
+
 use std::ffi::{CStr, CString};
 use std::os::raw::{c_char, c_int, c_float};
 use std::ptr;
@@ -21,6 +22,7 @@ pub struct CContentSummary {
 
 /// C-compatible processing mode
 #[repr(C)]
+#[derive(Debug, Clone, Copy)]
 pub enum CProcessingMode {
     Basic = 0,
     Enhanced = 1,

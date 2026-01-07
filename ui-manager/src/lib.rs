@@ -1,6 +1,4 @@
 use web_page_manager_core::*;
-use std::future::Future;
-use std::pin::Pin;
 
 pub mod traits;
 pub mod flutter;

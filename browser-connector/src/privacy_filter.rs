@@ -32,8 +32,7 @@ impl Default for PrivacyModeFilter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use web_page_manager_core::{BrowserType, TabId};
-    use chrono::Utc;
+    use web_page_manager_core::{BrowserType, TabId, Utc};
 
     fn create_test_tab(is_private: bool) -> TabInfo {
         TabInfo {

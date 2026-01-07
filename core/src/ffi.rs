@@ -208,7 +208,7 @@ pub extern "C" fn init_ui_manager(framework: c_int) -> FFIResult {
 /// Update UI data
 #[no_mangle]
 pub extern "C" fn update_ui_data(ui_data_json: *const c_char) -> FFIResult {
-    match std::panic::catch_unwind(|| {
+    match std::panic::catch_unwind(|| -> std::result::Result<String, WebPageManagerError> {
         unsafe {
             let ui_data_str = c_str_to_string(ui_data_json)?;
             let ui_data: UIData = deserialize_from_json(&ui_data_str)?;

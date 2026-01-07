@@ -118,7 +118,7 @@ impl BrowserConnector for ChromeConnector {
             keywords: Vec::new(),
             images: Vec::new(),
             links: Vec::new(),
-            extracted_at: chrono::Utc::now(),
+            extracted_at: Utc::now(),
         })
     }
 
@@ -241,7 +241,7 @@ impl BrowserConnector for EdgeConnector {
             keywords: Vec::new(),
             images: Vec::new(),
             links: Vec::new(),
-            extracted_at: chrono::Utc::now(),
+            extracted_at: Utc::now(),
         })
     }
 

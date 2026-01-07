@@ -109,7 +109,7 @@ impl BrowserConnector for FirefoxConnector {
             keywords: Vec::new(),
             images: Vec::new(),
             links: Vec::new(),
-            extracted_at: chrono::Utc::now(),
+            extracted_at: Utc::now(),
         })
     }
 

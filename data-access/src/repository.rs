@@ -3,6 +3,7 @@
 use web_page_manager_core::*;
 use tokio_rusqlite::Connection;
 use std::sync::Arc;
+use web_page_manager_core::Utc;
 use async_trait::async_trait;
 
 /// Repository trait for unified pages
@@ -315,7 +316,7 @@ impl GroupRepository for SqliteGroupRepository {
                     rusqlite::params![
                         page_id_str,
                         group_id_str,
-                        chrono::Utc::now().timestamp(),
+                        Utc::now().timestamp(),
                         confidence,
                     ],
                 )?;
