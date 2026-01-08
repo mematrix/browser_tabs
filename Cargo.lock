@@ -28,6 +28,7 @@ name = "ai-processor-ffi"
 version = "0.1.0"
 dependencies = [
  "libc",
+ "proptest",
  "regex",
  "serde",
  "serde_json",
