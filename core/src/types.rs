@@ -423,3 +423,57 @@ pub struct BrowserInfo {
     pub version: Option<String>,
     pub profile_name: Option<String>,
 }
+
+/// Creates a new BookmarkInfo from a TabInfo, inheriting all analyzed data
+/// from the associated UnifiedPageInfo.
+/// 
+/// This function ensures data inheritance integrity as per Requirement 6.3:
+/// When a user adds a tab as a bookmark, the new bookmark automatically inherits
+/// the analyzed content summary and tags.
+pub fn create_bookmark_from_tab(
+    tab: &TabInfo,
+    unified_page: &UnifiedPageInfo,
+    folder_path: Vec<String>,
+) -> (BookmarkInfo, UnifiedPageInfo) {
+    let bookmark_id = BookmarkId::new();
+    let now = Utc::now();
+    
+    // Create the bookmark with inherited data from tab
+    let bookmark = BookmarkInfo {
+        id: bookmark_id.clone(),
+        url: tab.url.clone(),
+        title: tab.title.clone(),
+        favicon_url: tab.favicon_url.clone(),
+        browser_type: tab.browser_type,
+        folder_path,
+        created_at: now,
+        last_accessed: Some(now),
+    };
+    
+    // Create a new UnifiedPageInfo for the bookmark that inherits
+    // the content summary and keywords from the original unified page
+    let bookmark_unified_page = UnifiedPageInfo {
+        id: Uuid::new_v4(),
+        url: tab.url.clone(),
+        title: tab.title.clone(),
+        favicon_url: tab.favicon_url.clone(),
+        // Inherit content summary from the original unified page
+        content_summary: unified_page.content_summary.clone(),
+        // Inherit keywords from the original unified page
+        keywords: unified_page.keywords.clone(),
+        // Inherit category from the original unified page
+        category: unified_page.category.clone(),
+        source_type: PageSourceType::Bookmark {
+            browser: tab.browser_type,
+            bookmark_id: bookmark_id.clone(),
+        },
+        browser_info: unified_page.browser_info.clone(),
+        tab_info: None,
+        bookmark_info: Some(bookmark.clone()),
+        created_at: now,
+        last_accessed: now,
+        access_count: 0,
+    };
+    
+    (bookmark, bookmark_unified_page)
+}

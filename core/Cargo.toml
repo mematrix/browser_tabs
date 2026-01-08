@@ -16,6 +16,9 @@ tracing = { workspace = true }
 # FFI support
 libc = "0.2"
 
+[dev-dependencies]
+proptest = "1.4"
+
 [lib]
 name = "web_page_manager_core"
 crate-type = ["cdylib", "rlib"]
