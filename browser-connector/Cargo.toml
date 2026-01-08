@@ -34,3 +34,6 @@ dirs = "5.0"
 
 # SQLite for Firefox bookmark parsing
 rusqlite = { version = "0.31", features = ["bundled"] }
+
+[dev-dependencies]
+proptest = "1.4"

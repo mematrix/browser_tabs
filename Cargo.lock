@@ -109,6 +109,7 @@ dependencies = [
  "chrono",
  "dirs",
  "futures-util",
+ "proptest",
  "reqwest",
  "rusqlite",
  "serde",
