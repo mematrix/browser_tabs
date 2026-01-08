@@ -8,7 +8,7 @@
   - 实现统一UI管理器接口和编译时特性选择
   - _需求: 4.1, 5.1, 5.2, 8.1_
 
-- [ ] 2. 实现数据模型和存储层
+- [x] 2. 实现数据模型和存储层
 - [x] 2.1 创建核心数据结构和类型定义
   - 实现UnifiedPageInfo、ContentSummary、SmartGroup等核心数据模型
   - 定义BrowserType、TabInfo、BookmarkInfo等浏览器相关类型
@@ -31,7 +31,7 @@
   - **验证需求: Requirements 3.1, 3.2, 3.4**
 
 - [ ] 3. 开发浏览器连接和通信模块
-- [ ] 3.1 实现浏览器检测和连接功能
+- [x] 3.1 实现浏览器检测和连接功能
   - 开发Chrome/Edge的CDP连接器
   - 实现Firefox的WebExtensions通信
   - 创建浏览器实例管理和生命周期控制

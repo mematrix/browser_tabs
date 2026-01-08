@@ -53,6 +53,31 @@
 - Database statistics and optimization (VACUUM/ANALYZE)
 - Cache management integration
 
+## Browser Connector Layer (Task 3.1)
+
+### Chrome/Edge CDP Connector (`cdp.rs`)
+- Real browser detection via CDP HTTP endpoints (`/json/version`, `/json/list`)
+- Connection management with proper state tracking
+- Tab retrieval from CDP targets
+- Tab operations: close, activate, create via CDP HTTP API
+- Page content fetching with basic HTML parsing
+- Support for custom debug ports
+
+### Firefox WebExtensions Connector (`firefox.rs`)
+- Firefox profile detection across Windows, Linux, and macOS
+- Native messaging host registration checking
+- Connection state management
+- Data structures for Firefox tabs and bookmarks
+- Conversion utilities for Firefox data to core types
+
+### Browser Connector Manager (`lib.rs`)
+- Unified interface for managing multiple browser connections
+- Browser instance lifecycle management with status tracking
+- Automatic browser detection on common ports
+- Privacy mode filtering integration
+- Methods for connecting to all detected browsers
+- Aggregated tab/bookmark retrieval across browsers
+
 ## Build System
 
 - Cargo workspace for Rust modules
