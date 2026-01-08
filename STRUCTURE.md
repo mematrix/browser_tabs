@@ -142,6 +142,56 @@
 - `import_all_bookmarks()` - convenience method for full import
 - `validate_bookmarks()` - convenience method for batch validation
 
+## AI Content Processor (Task 4.1)
+
+### Basic AI Content Processing Implementation
+
+The AI content processor implementation includes:
+
+- **Text summarization**: Extractive summarization using sentence scoring based on word frequency, with fallback to description or truncated text
+- **Keyword extraction**: TF-based analysis with stop word filtering, merging meta keywords with extracted keywords from text and title
+- **Content classification**: Classifies pages into 8 categories (Article, Video, Documentation, SocialMedia, Shopping, News, Reference, Other) based on title and content patterns
+- **Similarity calculation**: Multiple methods including cosine similarity, Jaccard similarity, n-gram similarity, and combined similarity for robust content comparison
+
+### Content Analyzer (`content_analyzer.cpp`)
+- HTML text extraction with script/style removal and entity decoding
+- Title and meta description extraction from HTML
+- Meta keywords and image/link extraction
+- Language detection supporting English, Chinese, Spanish, French, German, Russian, Arabic
+- Reading time estimation (200 words/min for word-based, 300 chars/min for character-based languages)
+- Content type classification based on URL patterns and content analysis
+- Extractive summarization using sentence scoring with word frequency and position weighting
+- Keyword extraction using term frequency with stop word filtering
+- Key point extraction for generating content highlights
+
+### Similarity Calculator (`similarity_calculator.cpp`)
+- Cosine similarity calculation using TF vectors
+- Jaccard similarity for keyword set comparison
+- N-gram similarity (bigrams, trigrams) for better phrase matching
+- Combined similarity using weighted multiple methods
+- TF-IDF calculation for document corpus analysis
+- Summary similarity combining text, key points, content type, and language
+- Document search with similarity threshold filtering
+
+### Group Suggester (`group_suggester.cpp`)
+- Content-based grouping using similarity clustering
+- Domain-based grouping by extracting domains from URLs
+- Topic-based grouping using primary keywords
+- Group merging based on overlap threshold
+- Automatic group name generation from common words
+- Group description generation with keyword analysis
+
+### AI Content Processor Interface (`ai_processor.cpp`)
+- Unified processor with three processing modes: Basic, Enhanced, Auto
+- Integration of content analyzer, similarity calculator, and group suggester
+- Summary generation with confidence scoring
+- Keyword extraction merging meta keywords with text analysis
+- Content classification with category hierarchy
+- Content relevance scoring between pages
+- Page structure analysis with metadata extraction
+- Topic identification from keywords
+- Processing capabilities reporting
+
 ## Build System
 
 - Cargo workspace for Rust modules

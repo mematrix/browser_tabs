@@ -40,6 +40,24 @@ public:
     /// Classify content type based on structure and content
     ContentType ClassifyContentType(const PageContent& content);
     
+    /// Generate a summary of the text using extractive summarization
+    /// @param text The input text to summarize
+    /// @param max_sentences Maximum number of sentences in the summary (default: 3)
+    /// @return A summary string containing the most important sentences
+    std::string GenerateSummary(const std::string& text, size_t max_sentences = 3);
+    
+    /// Extract keywords from text using TF-based analysis
+    /// @param text The input text to analyze
+    /// @param max_keywords Maximum number of keywords to extract (default: 10)
+    /// @return A vector of keywords sorted by importance
+    std::vector<std::string> ExtractKeywordsFromText(const std::string& text, size_t max_keywords = 10);
+    
+    /// Extract key points from text
+    /// @param text The input text to analyze
+    /// @param max_points Maximum number of key points to extract (default: 5)
+    /// @return A vector of key point sentences
+    std::vector<std::string> ExtractKeyPoints(const std::string& text, size_t max_points = 5);
+    
 private:
     class Impl;
     std::unique_ptr<Impl> impl_;

@@ -39,6 +39,26 @@ public:
         double threshold = 0.5
     );
     
+    /// Calculate n-gram based similarity between two texts
+    /// @param text_a First text
+    /// @param text_b Second text
+    /// @param n Size of n-grams (default: 2 for bigrams)
+    /// @return Similarity score between 0 and 1
+    double CalculateNGramSimilarity(
+        const std::string& text_a,
+        const std::string& text_b,
+        size_t n = 2
+    );
+    
+    /// Calculate combined similarity using multiple methods
+    /// @param text_a First text
+    /// @param text_b Second text
+    /// @return Combined similarity score between 0 and 1
+    double CalculateCombinedSimilarity(
+        const std::string& text_a,
+        const std::string& text_b
+    );
+    
 private:
     class Impl;
     std::unique_ptr<Impl> impl_;

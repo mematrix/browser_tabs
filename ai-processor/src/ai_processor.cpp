@@ -4,6 +4,7 @@
 #include "group_suggester.h"
 #include <algorithm>
 #include <numeric>
+#include <unordered_set>
 
 namespace web_page_manager {
 namespace ai {
@@ -36,29 +37,52 @@ AIContentProcessor& AIContentProcessor::operator=(AIContentProcessor&&) noexcept
 ContentSummary AIContentProcessor::GenerateSummary(const PageContent& content) {
     ContentSummary summary;
     
-    // Extract key sentences for summary
-    // Simple implementation: take first few sentences
-    std::string text = content.text;
-    if (text.length() > 500) {
-        text = text.substr(0, 500) + "...";
+    // Use the content analyzer to generate an extractive summary
+    std::string text_to_summarize = content.text;
+    if (text_to_summarize.empty() && !content.html.empty()) {
+        text_to_summarize = impl_->content_analyzer_->ExtractText(content.html);
     }
-    summary.summary_text = text;
     
-    // Extract key points (simple: split by sentences)
-    // TODO: Implement more sophisticated key point extraction
-    summary.key_points = {"Key point 1", "Key point 2", "Key point 3"};
+    // Generate summary using extractive summarization
+    summary.summary_text = impl_->content_analyzer_->GenerateSummary(text_to_summarize, 3);
+    
+    // If summary is empty, fall back to description or truncated text
+    if (summary.summary_text.empty()) {
+        if (content.description && !content.description->empty()) {
+            summary.summary_text = *content.description;
+        } else if (!text_to_summarize.empty()) {
+            // Truncate to first 300 characters
+            if (text_to_summarize.length() > 300) {
+                summary.summary_text = text_to_summarize.substr(0, 297) + "...";
+            } else {
+                summary.summary_text = text_to_summarize;
+            }
+        }
+    }
+    
+    // Extract key points
+    summary.key_points = impl_->content_analyzer_->ExtractKeyPoints(text_to_summarize, 5);
     
     // Classify content type
     summary.content_type = impl_->content_analyzer_->ClassifyContentType(content);
     
     // Detect language
-    summary.language = impl_->content_analyzer_->DetectLanguage(content.text);
+    summary.language = impl_->content_analyzer_->DetectLanguage(text_to_summarize);
     
     // Estimate reading time
-    summary.reading_time_minutes = impl_->content_analyzer_->EstimateReadingTime(content.text);
+    summary.reading_time_minutes = impl_->content_analyzer_->EstimateReadingTime(text_to_summarize);
     
-    // Set confidence score
-    summary.confidence_score = 0.85f;
+    // Calculate confidence score based on content quality
+    float confidence = 0.5f;
+    
+    // Boost confidence if we have good content
+    if (!summary.summary_text.empty()) confidence += 0.15f;
+    if (!summary.key_points.empty()) confidence += 0.1f;
+    if (!content.title.empty()) confidence += 0.1f;
+    if (content.description && !content.description->empty()) confidence += 0.1f;
+    if (text_to_summarize.length() > 500) confidence += 0.05f;
+    
+    summary.confidence_score = std::min(0.95f, confidence);
     
     return summary;
 }
@@ -69,24 +93,39 @@ std::vector<std::string> AIContentProcessor::ExtractKeywords(const PageContent& 
     // Start with meta keywords if available
     keywords = content.keywords;
     
-    // TODO: Implement TF-IDF based keyword extraction
-    // For now, return existing keywords or extract from title
-    if (keywords.empty() && !content.title.empty()) {
-        // Simple word extraction from title
-        std::string word;
-        for (char c : content.title) {
-            if (std::isalnum(c)) {
-                word += std::tolower(c);
-            } else if (!word.empty()) {
-                if (word.length() > 3) {
-                    keywords.push_back(word);
-                }
-                word.clear();
+    // Extract keywords from text content
+    std::string text_to_analyze = content.text;
+    if (text_to_analyze.empty() && !content.html.empty()) {
+        text_to_analyze = impl_->content_analyzer_->ExtractText(content.html);
+    }
+    
+    // Use the content analyzer to extract keywords from text
+    auto extracted_keywords = impl_->content_analyzer_->ExtractKeywordsFromText(text_to_analyze, 15);
+    
+    // Merge with existing keywords, avoiding duplicates
+    std::unordered_set<std::string> keyword_set(keywords.begin(), keywords.end());
+    for (const auto& kw : extracted_keywords) {
+        if (keyword_set.find(kw) == keyword_set.end()) {
+            keywords.push_back(kw);
+            keyword_set.insert(kw);
+        }
+    }
+    
+    // Also extract keywords from title
+    if (!content.title.empty()) {
+        auto title_keywords = impl_->content_analyzer_->ExtractKeywordsFromText(content.title, 5);
+        for (const auto& kw : title_keywords) {
+            if (keyword_set.find(kw) == keyword_set.end()) {
+                // Title keywords are important, add them at the beginning
+                keywords.insert(keywords.begin(), kw);
+                keyword_set.insert(kw);
             }
         }
-        if (!word.empty() && word.length() > 3) {
-            keywords.push_back(word);
-        }
+    }
+    
+    // Limit to top 20 keywords
+    if (keywords.size() > 20) {
+        keywords.resize(20);
     }
     
     return keywords;

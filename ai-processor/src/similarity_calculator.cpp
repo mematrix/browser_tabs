@@ -4,9 +4,23 @@
 #include <sstream>
 #include <unordered_set>
 #include <cctype>
+#include <numeric>
 
 namespace web_page_manager {
 namespace ai {
+
+// Common stop words to filter out
+static const std::unordered_set<std::string> STOP_WORDS = {
+    "the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for",
+    "of", "with", "by", "from", "as", "is", "was", "are", "were", "been",
+    "be", "have", "has", "had", "do", "does", "did", "will", "would", "could",
+    "should", "may", "might", "must", "shall", "can", "need", "dare", "ought",
+    "used", "this", "that", "these", "those", "i", "you", "he", "she", "it",
+    "we", "they", "what", "which", "who", "whom", "whose", "where", "when",
+    "why", "how", "all", "each", "every", "both", "few", "more", "most",
+    "other", "some", "such", "no", "nor", "not", "only", "own", "same",
+    "so", "than", "too", "very", "just", "also", "now", "here", "there"
+};
 
 class SimilarityCalculator::Impl {
 public:
@@ -19,14 +33,14 @@ public:
             if (std::isalnum(static_cast<unsigned char>(c))) {
                 word += std::tolower(static_cast<unsigned char>(c));
             } else if (!word.empty()) {
-                if (word.length() > 2) { // Skip very short words
+                if (word.length() > 2 && STOP_WORDS.find(word) == STOP_WORDS.end()) {
                     tokens.push_back(word);
                 }
                 word.clear();
             }
         }
         
-        if (!word.empty() && word.length() > 2) {
+        if (!word.empty() && word.length() > 2 && STOP_WORDS.find(word) == STOP_WORDS.end()) {
             tokens.push_back(word);
         }
         
@@ -52,6 +66,36 @@ public:
         }
         
         return tf;
+    }
+    
+    // Calculate n-grams for better similarity detection
+    std::vector<std::string> CalculateNGrams(const std::string& text, size_t n = 2) {
+        std::vector<std::string> ngrams;
+        auto tokens = Tokenize(text);
+        
+        if (tokens.size() < n) {
+            return tokens;
+        }
+        
+        for (size_t i = 0; i <= tokens.size() - n; ++i) {
+            std::string ngram;
+            for (size_t j = 0; j < n; ++j) {
+                if (j > 0) ngram += " ";
+                ngram += tokens[i + j];
+            }
+            ngrams.push_back(ngram);
+        }
+        
+        return ngrams;
+    }
+    
+    // Calculate document vector magnitude
+    double CalculateMagnitude(const std::unordered_map<std::string, double>& vec) {
+        double sum = 0.0;
+        for (const auto& pair : vec) {
+            sum += pair.second * pair.second;
+        }
+        return std::sqrt(sum);
     }
 };
 
@@ -136,10 +180,10 @@ double SimilarityCalculator::CalculateSummarySimilarity(
     const ContentSummary& a,
     const ContentSummary& b
 ) {
-    // Calculate text similarity
+    // Calculate text similarity using cosine similarity
     double text_sim = CalculateCosineSimilarity(a.summary_text, b.summary_text);
     
-    // Calculate key points similarity
+    // Calculate key points similarity using Jaccard
     double keypoints_sim = CalculateJaccardSimilarity(a.key_points, b.key_points);
     
     // Content type match bonus
@@ -148,11 +192,66 @@ double SimilarityCalculator::CalculateSummarySimilarity(
     // Language match bonus
     double lang_bonus = (a.language == b.language) ? 0.05 : 0.0;
     
+    // Reading time similarity (closer reading times suggest similar content length/complexity)
+    double reading_time_sim = 0.0;
+    if (a.reading_time_minutes > 0 && b.reading_time_minutes > 0) {
+        double max_time = std::max(static_cast<double>(a.reading_time_minutes), 
+                                   static_cast<double>(b.reading_time_minutes));
+        double min_time = std::min(static_cast<double>(a.reading_time_minutes), 
+                                   static_cast<double>(b.reading_time_minutes));
+        reading_time_sim = (min_time / max_time) * 0.05;
+    }
+    
     // Weighted combination
-    double similarity = 0.6 * text_sim + 0.25 * keypoints_sim + type_bonus + lang_bonus;
+    // Text similarity is most important, followed by key points
+    double similarity = 0.55 * text_sim + 0.25 * keypoints_sim + type_bonus + lang_bonus + reading_time_sim;
     
     // Clamp to [0, 1]
     return std::min(1.0, std::max(0.0, similarity));
+}
+
+double SimilarityCalculator::CalculateNGramSimilarity(
+    const std::string& text_a,
+    const std::string& text_b,
+    size_t n
+) {
+    auto ngrams_a = impl_->CalculateNGrams(text_a, n);
+    auto ngrams_b = impl_->CalculateNGrams(text_b, n);
+    
+    if (ngrams_a.empty() && ngrams_b.empty()) {
+        return 1.0;
+    }
+    
+    if (ngrams_a.empty() || ngrams_b.empty()) {
+        return 0.0;
+    }
+    
+    std::unordered_set<std::string> set_a(ngrams_a.begin(), ngrams_a.end());
+    std::unordered_set<std::string> set_b(ngrams_b.begin(), ngrams_b.end());
+    
+    size_t intersection = 0;
+    for (const auto& ngram : set_a) {
+        if (set_b.count(ngram)) {
+            intersection++;
+        }
+    }
+    
+    size_t union_size = set_a.size() + set_b.size() - intersection;
+    
+    return static_cast<double>(intersection) / static_cast<double>(union_size);
+}
+
+double SimilarityCalculator::CalculateCombinedSimilarity(
+    const std::string& text_a,
+    const std::string& text_b
+) {
+    // Combine multiple similarity measures for more robust results
+    double cosine_sim = CalculateCosineSimilarity(text_a, text_b);
+    double bigram_sim = CalculateNGramSimilarity(text_a, text_b, 2);
+    double trigram_sim = CalculateNGramSimilarity(text_a, text_b, 3);
+    
+    // Weighted combination
+    return 0.5 * cosine_sim + 0.3 * bigram_sim + 0.2 * trigram_sim;
 }
 
 std::unordered_map<std::string, double> SimilarityCalculator::CalculateTfIdf(
