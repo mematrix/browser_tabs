@@ -420,6 +420,436 @@ pub extern "C" fn ai_processor_free_category(category: CCategoryInfo) {
     }
 }
 
+/// C-compatible page structure
+#[repr(C)]
+pub struct CPageStructure {
+    pub heading_count: usize,
+    pub paragraph_count: usize,
+    pub list_count: usize,
+    pub table_count: usize,
+    pub form_count: usize,
+    pub media_count: usize,
+    pub headings: *mut *mut c_char,
+    pub headings_count: usize,
+    pub sections: *mut *mut c_char,
+    pub sections_count: usize,
+    pub has_navigation: c_int,
+    pub has_sidebar: c_int,
+    pub has_footer: c_int,
+    pub content_density: c_float,
+}
+
+/// C-compatible entity info
+#[repr(C)]
+pub struct CEntityInfo {
+    pub name: *mut c_char,
+    pub entity_type: *mut c_char,
+    pub confidence: c_float,
+    pub positions: *mut usize,
+    pub positions_count: usize,
+}
+
+/// C-compatible cross recommendation
+#[repr(C)]
+pub struct CCrossRecommendation {
+    pub source_id: *mut c_char,
+    pub target_id: *mut c_char,
+    pub relevance_score: c_float,
+    pub reason: *mut c_char,
+    pub common_topics: *mut *mut c_char,
+    pub common_topics_count: usize,
+}
+
+/// C-compatible group suggestion
+#[repr(C)]
+pub struct CGroupSuggestion {
+    pub group_name: *mut c_char,
+    pub description: *mut c_char,
+    pub page_ids: *mut *mut c_char,
+    pub page_ids_count: usize,
+    pub similarity_score: c_float,
+}
+
+/// Analyze page structure from HTML content
+#[no_mangle]
+pub extern "C" fn ai_processor_analyze_page_structure(
+    processor: *mut CAIProcessor,
+    html: *const c_char,
+) -> CPageStructure {
+    let empty_structure = CPageStructure {
+        heading_count: 0,
+        paragraph_count: 0,
+        list_count: 0,
+        table_count: 0,
+        form_count: 0,
+        media_count: 0,
+        headings: ptr::null_mut(),
+        headings_count: 0,
+        sections: ptr::null_mut(),
+        sections_count: 0,
+        has_navigation: 0,
+        has_sidebar: 0,
+        has_footer: 0,
+        content_density: 0.0,
+    };
+    
+    if processor.is_null() || html.is_null() {
+        return empty_structure;
+    }
+    
+    unsafe {
+        let html_str = match CStr::from_ptr(html).to_str() {
+            Ok(s) => s,
+            Err(_) => return empty_structure,
+        };
+        
+        let structure = analyze_page_structure_internal(html_str);
+        structure
+    }
+}
+
+/// Extract entities from text
+#[no_mangle]
+pub extern "C" fn ai_processor_extract_entities(
+    processor: *mut CAIProcessor,
+    text: *const c_char,
+    entities_out: *mut *mut CEntityInfo,
+    count_out: *mut usize,
+) -> c_int {
+    if processor.is_null() || text.is_null() || entities_out.is_null() || count_out.is_null() {
+        return -1;
+    }
+    
+    unsafe {
+        let text_str = match CStr::from_ptr(text).to_str() {
+            Ok(s) => s,
+            Err(_) => return -1,
+        };
+        
+        let entities = extract_entities_internal(text_str);
+        
+        if entities.is_empty() {
+            *entities_out = ptr::null_mut();
+            *count_out = 0;
+            return 0;
+        }
+        
+        let c_entities: Vec<CEntityInfo> = entities
+            .into_iter()
+            .map(|(name, entity_type, confidence, positions)| {
+                let name_c = CString::new(name).unwrap_or_default();
+                let type_c = CString::new(entity_type).unwrap_or_default();
+                
+                let positions_ptr = if !positions.is_empty() {
+                    let mut pos_vec = positions.into_boxed_slice();
+                    let ptr = pos_vec.as_mut_ptr();
+                    std::mem::forget(pos_vec);
+                    ptr
+                } else {
+                    ptr::null_mut()
+                };
+                
+                CEntityInfo {
+                    name: name_c.into_raw(),
+                    entity_type: type_c.into_raw(),
+                    confidence,
+                    positions: positions_ptr,
+                    positions_count: 0, // Will be set properly
+                }
+            })
+            .collect();
+        
+        let count = c_entities.len();
+        let entities_box = c_entities.into_boxed_slice();
+        *entities_out = Box::into_raw(entities_box) as *mut CEntityInfo;
+        *count_out = count;
+        
+        0
+    }
+}
+
+/// Analyze sentiment of text
+#[no_mangle]
+pub extern "C" fn ai_processor_analyze_sentiment(
+    processor: *mut CAIProcessor,
+    text: *const c_char,
+    label_out: *mut *mut c_char,
+    score_out: *mut c_float,
+) -> c_int {
+    if processor.is_null() || text.is_null() || label_out.is_null() || score_out.is_null() {
+        return -1;
+    }
+    
+    unsafe {
+        let text_str = match CStr::from_ptr(text).to_str() {
+            Ok(s) => s,
+            Err(_) => return -1,
+        };
+        
+        let (label, score) = analyze_sentiment_internal(text_str);
+        
+        let label_c = CString::new(label).unwrap_or_default();
+        *label_out = label_c.into_raw();
+        *score_out = score;
+        
+        0
+    }
+}
+
+/// Suggest groups from multiple page contents
+#[no_mangle]
+pub extern "C" fn ai_processor_suggest_groups(
+    processor: *mut CAIProcessor,
+    contents_json: *const c_char,
+    similarity_threshold: c_double,
+    suggestions_out: *mut *mut CGroupSuggestion,
+    count_out: *mut usize,
+) -> c_int {
+    if processor.is_null() || contents_json.is_null() || suggestions_out.is_null() || count_out.is_null() {
+        return -1;
+    }
+    
+    unsafe {
+        let contents_str = match CStr::from_ptr(contents_json).to_str() {
+            Ok(s) => s,
+            Err(_) => return -1,
+        };
+        
+        let contents: Vec<PageContentInput> = match serde_json::from_str(contents_str) {
+            Ok(c) => c,
+            Err(_) => return -1,
+        };
+        
+        let suggestions = suggest_groups_internal(&contents, similarity_threshold);
+        
+        if suggestions.is_empty() {
+            *suggestions_out = ptr::null_mut();
+            *count_out = 0;
+            return 0;
+        }
+        
+        let c_suggestions: Vec<CGroupSuggestion> = suggestions
+            .into_iter()
+            .map(|(name, description, page_ids, score)| {
+                let name_c = CString::new(name).unwrap_or_default();
+                let desc_c = CString::new(description).unwrap_or_default();
+                
+                let mut page_ids_ptrs: Vec<*mut c_char> = page_ids
+                    .into_iter()
+                    .filter_map(|id| CString::new(id).ok())
+                    .map(|cs| cs.into_raw())
+                    .collect();
+                
+                let page_ids_count = page_ids_ptrs.len();
+                let page_ids_ptr = if page_ids_count > 0 {
+                    let ptr = page_ids_ptrs.as_mut_ptr();
+                    std::mem::forget(page_ids_ptrs);
+                    ptr
+                } else {
+                    ptr::null_mut()
+                };
+                
+                CGroupSuggestion {
+                    group_name: name_c.into_raw(),
+                    description: desc_c.into_raw(),
+                    page_ids: page_ids_ptr,
+                    page_ids_count,
+                    similarity_score: score,
+                }
+            })
+            .collect();
+        
+        let count = c_suggestions.len();
+        let suggestions_box = c_suggestions.into_boxed_slice();
+        *suggestions_out = Box::into_raw(suggestions_box) as *mut CGroupSuggestion;
+        *count_out = count;
+        
+        0
+    }
+}
+
+/// Generate cross-content recommendations
+#[no_mangle]
+pub extern "C" fn ai_processor_generate_cross_recommendations(
+    processor: *mut CAIProcessor,
+    contents_json: *const c_char,
+    min_relevance: c_float,
+    recommendations_out: *mut *mut CCrossRecommendation,
+    count_out: *mut usize,
+) -> c_int {
+    if processor.is_null() || contents_json.is_null() || recommendations_out.is_null() || count_out.is_null() {
+        return -1;
+    }
+    
+    unsafe {
+        let contents_str = match CStr::from_ptr(contents_json).to_str() {
+            Ok(s) => s,
+            Err(_) => return -1,
+        };
+        
+        let contents: Vec<PageContentInput> = match serde_json::from_str(contents_str) {
+            Ok(c) => c,
+            Err(_) => return -1,
+        };
+        
+        let recommendations = generate_cross_recommendations_internal(&contents, min_relevance);
+        
+        if recommendations.is_empty() {
+            *recommendations_out = ptr::null_mut();
+            *count_out = 0;
+            return 0;
+        }
+        
+        let c_recommendations: Vec<CCrossRecommendation> = recommendations
+            .into_iter()
+            .map(|(source_id, target_id, score, reason, common_topics)| {
+                let source_c = CString::new(source_id).unwrap_or_default();
+                let target_c = CString::new(target_id).unwrap_or_default();
+                let reason_c = CString::new(reason).unwrap_or_default();
+                
+                let mut topics_ptrs: Vec<*mut c_char> = common_topics
+                    .into_iter()
+                    .filter_map(|t| CString::new(t).ok())
+                    .map(|cs| cs.into_raw())
+                    .collect();
+                
+                let topics_count = topics_ptrs.len();
+                let topics_ptr = if topics_count > 0 {
+                    let ptr = topics_ptrs.as_mut_ptr();
+                    std::mem::forget(topics_ptrs);
+                    ptr
+                } else {
+                    ptr::null_mut()
+                };
+                
+                CCrossRecommendation {
+                    source_id: source_c.into_raw(),
+                    target_id: target_c.into_raw(),
+                    relevance_score: score,
+                    reason: reason_c.into_raw(),
+                    common_topics: topics_ptr,
+                    common_topics_count: topics_count,
+                }
+            })
+            .collect();
+        
+        let count = c_recommendations.len();
+        let recommendations_box = c_recommendations.into_boxed_slice();
+        *recommendations_out = Box::into_raw(recommendations_box) as *mut CCrossRecommendation;
+        *count_out = count;
+        
+        0
+    }
+}
+
+/// Free page structure
+#[no_mangle]
+pub extern "C" fn ai_processor_free_page_structure(structure: CPageStructure) {
+    if !structure.headings.is_null() && structure.headings_count > 0 {
+        unsafe {
+            let headings_slice = std::slice::from_raw_parts_mut(structure.headings, structure.headings_count);
+            for h in headings_slice {
+                if !h.is_null() {
+                    let _ = CString::from_raw(*h);
+                }
+            }
+            let _ = Box::from_raw(std::slice::from_raw_parts_mut(structure.headings, structure.headings_count) as *mut [*mut c_char]);
+        }
+    }
+    if !structure.sections.is_null() && structure.sections_count > 0 {
+        unsafe {
+            let sections_slice = std::slice::from_raw_parts_mut(structure.sections, structure.sections_count);
+            for s in sections_slice {
+                if !s.is_null() {
+                    let _ = CString::from_raw(*s);
+                }
+            }
+            let _ = Box::from_raw(std::slice::from_raw_parts_mut(structure.sections, structure.sections_count) as *mut [*mut c_char]);
+        }
+    }
+}
+
+/// Free entity info array
+#[no_mangle]
+pub extern "C" fn ai_processor_free_entities(entities: *mut CEntityInfo, count: usize) {
+    if !entities.is_null() && count > 0 {
+        unsafe {
+            let entities_slice = std::slice::from_raw_parts_mut(entities, count);
+            for entity in entities_slice {
+                if !entity.name.is_null() {
+                    let _ = CString::from_raw(entity.name);
+                }
+                if !entity.entity_type.is_null() {
+                    let _ = CString::from_raw(entity.entity_type);
+                }
+                if !entity.positions.is_null() && entity.positions_count > 0 {
+                    let _ = Box::from_raw(std::slice::from_raw_parts_mut(entity.positions, entity.positions_count) as *mut [usize]);
+                }
+            }
+            let _ = Box::from_raw(std::slice::from_raw_parts_mut(entities, count) as *mut [CEntityInfo]);
+        }
+    }
+}
+
+/// Free group suggestion array
+#[no_mangle]
+pub extern "C" fn ai_processor_free_group_suggestions(suggestions: *mut CGroupSuggestion, count: usize) {
+    if !suggestions.is_null() && count > 0 {
+        unsafe {
+            let suggestions_slice = std::slice::from_raw_parts_mut(suggestions, count);
+            for suggestion in suggestions_slice {
+                if !suggestion.group_name.is_null() {
+                    let _ = CString::from_raw(suggestion.group_name);
+                }
+                if !suggestion.description.is_null() {
+                    let _ = CString::from_raw(suggestion.description);
+                }
+                if !suggestion.page_ids.is_null() && suggestion.page_ids_count > 0 {
+                    let page_ids_slice = std::slice::from_raw_parts_mut(suggestion.page_ids, suggestion.page_ids_count);
+                    for id in page_ids_slice {
+                        if !id.is_null() {
+                            let _ = CString::from_raw(*id);
+                        }
+                    }
+                    let _ = Box::from_raw(std::slice::from_raw_parts_mut(suggestion.page_ids, suggestion.page_ids_count) as *mut [*mut c_char]);
+                }
+            }
+            let _ = Box::from_raw(std::slice::from_raw_parts_mut(suggestions, count) as *mut [CGroupSuggestion]);
+        }
+    }
+}
+
+/// Free cross recommendation array
+#[no_mangle]
+pub extern "C" fn ai_processor_free_cross_recommendations(recommendations: *mut CCrossRecommendation, count: usize) {
+    if !recommendations.is_null() && count > 0 {
+        unsafe {
+            let recommendations_slice = std::slice::from_raw_parts_mut(recommendations, count);
+            for rec in recommendations_slice {
+                if !rec.source_id.is_null() {
+                    let _ = CString::from_raw(rec.source_id);
+                }
+                if !rec.target_id.is_null() {
+                    let _ = CString::from_raw(rec.target_id);
+                }
+                if !rec.reason.is_null() {
+                    let _ = CString::from_raw(rec.reason);
+                }
+                if !rec.common_topics.is_null() && rec.common_topics_count > 0 {
+                    let topics_slice = std::slice::from_raw_parts_mut(rec.common_topics, rec.common_topics_count);
+                    for topic in topics_slice {
+                        if !topic.is_null() {
+                            let _ = CString::from_raw(*topic);
+                        }
+                    }
+                    let _ = Box::from_raw(std::slice::from_raw_parts_mut(rec.common_topics, rec.common_topics_count) as *mut [*mut c_char]);
+                }
+            }
+            let _ = Box::from_raw(std::slice::from_raw_parts_mut(recommendations, count) as *mut [CCrossRecommendation]);
+        }
+    }
+}
+
 
 // ============================================================================
 // Internal helper functions for AI processing
@@ -799,6 +1229,434 @@ fn calculate_cosine_similarity(text_a: &str, text_b: &str) -> f64 {
     }
     
     dot_product / (magnitude_a * magnitude_b)
+}
+
+/// Analyze page structure from HTML
+fn analyze_page_structure_internal(html: &str) -> CPageStructure {
+    use regex::Regex;
+    
+    let mut structure = CPageStructure {
+        heading_count: 0,
+        paragraph_count: 0,
+        list_count: 0,
+        table_count: 0,
+        form_count: 0,
+        media_count: 0,
+        headings: ptr::null_mut(),
+        headings_count: 0,
+        sections: ptr::null_mut(),
+        sections_count: 0,
+        has_navigation: 0,
+        has_sidebar: 0,
+        has_footer: 0,
+        content_density: 0.0,
+    };
+    
+    if html.is_empty() {
+        return structure;
+    }
+    
+    // Count headings
+    for i in 1..=6 {
+        let pattern = format!(r"(?i)<h{}", i);
+        if let Ok(re) = Regex::new(&pattern) {
+            structure.heading_count += re.find_iter(html).count();
+        }
+    }
+    
+    // Extract heading texts
+    let mut headings = Vec::new();
+    if let Ok(re) = Regex::new(r"(?i)<h[1-6][^>]*>([^<]*)</h[1-6]>") {
+        for cap in re.captures_iter(html) {
+            if let Some(text) = cap.get(1) {
+                let heading = text.as_str().trim().to_string();
+                if !heading.is_empty() {
+                    headings.push(heading);
+                }
+            }
+        }
+    }
+    
+    // Count paragraphs
+    if let Ok(re) = Regex::new(r"(?i)<p[^>]*>") {
+        structure.paragraph_count = re.find_iter(html).count();
+    }
+    
+    // Count lists
+    if let Ok(re) = Regex::new(r"(?i)<(ul|ol)[^>]*>") {
+        structure.list_count = re.find_iter(html).count();
+    }
+    
+    // Count tables
+    if let Ok(re) = Regex::new(r"(?i)<table[^>]*>") {
+        structure.table_count = re.find_iter(html).count();
+    }
+    
+    // Count forms
+    if let Ok(re) = Regex::new(r"(?i)<form[^>]*>") {
+        structure.form_count = re.find_iter(html).count();
+    }
+    
+    // Count media elements
+    if let Ok(re) = Regex::new(r"(?i)<(img|video|audio)[^>]*>") {
+        structure.media_count = re.find_iter(html).count();
+    }
+    
+    // Check for navigation
+    if let Ok(re) = Regex::new(r#"(?i)<nav[^>]*>|class=["'][^"']*nav[^"']*["']"#) {
+        structure.has_navigation = if re.is_match(html) { 1 } else { 0 };
+    }
+    
+    // Check for sidebar
+    if let Ok(re) = Regex::new(r#"(?i)class=["'][^"']*sidebar[^"']*["']|<aside[^>]*>"#) {
+        structure.has_sidebar = if re.is_match(html) { 1 } else { 0 };
+    }
+    
+    // Check for footer
+    if let Ok(re) = Regex::new(r#"(?i)<footer[^>]*>|class=["'][^"']*footer[^"']*["']"#) {
+        structure.has_footer = if re.is_match(html) { 1 } else { 0 };
+    }
+    
+    // Calculate content density
+    let text = strip_html_tags(html);
+    if !html.is_empty() {
+        structure.content_density = text.len() as f32 / html.len() as f32;
+    }
+    
+    // Convert headings to C strings
+    if !headings.is_empty() {
+        let mut headings_ptrs: Vec<*mut c_char> = headings
+            .iter()
+            .filter_map(|h| CString::new(h.as_str()).ok())
+            .map(|cs| cs.into_raw())
+            .collect();
+        
+        structure.headings_count = headings_ptrs.len();
+        if structure.headings_count > 0 {
+            let ptr = headings_ptrs.as_mut_ptr();
+            std::mem::forget(headings_ptrs);
+            structure.headings = ptr;
+        }
+        
+        // Use headings as sections
+        let mut sections_ptrs: Vec<*mut c_char> = headings
+            .into_iter()
+            .filter_map(|h| CString::new(h).ok())
+            .map(|cs| cs.into_raw())
+            .collect();
+        
+        structure.sections_count = sections_ptrs.len();
+        if structure.sections_count > 0 {
+            let ptr = sections_ptrs.as_mut_ptr();
+            std::mem::forget(sections_ptrs);
+            structure.sections = ptr;
+        }
+    }
+    
+    structure
+}
+
+/// Strip HTML tags from text
+fn strip_html_tags(html: &str) -> String {
+    use regex::Regex;
+    
+    let mut result = html.to_string();
+    
+    // Remove script and style tags with content
+    if let Ok(re) = Regex::new(r"(?is)<script[^>]*>.*?</script>") {
+        result = re.replace_all(&result, " ").to_string();
+    }
+    if let Ok(re) = Regex::new(r"(?is)<style[^>]*>.*?</style>") {
+        result = re.replace_all(&result, " ").to_string();
+    }
+    
+    // Remove all HTML tags
+    if let Ok(re) = Regex::new(r"<[^>]*>") {
+        result = re.replace_all(&result, " ").to_string();
+    }
+    
+    // Normalize whitespace
+    if let Ok(re) = Regex::new(r"\s+") {
+        result = re.replace_all(&result, " ").to_string();
+    }
+    
+    result.trim().to_string()
+}
+
+/// Extract entities from text
+fn extract_entities_internal(text: &str) -> Vec<(String, String, f32, Vec<usize>)> {
+    use regex::Regex;
+    use std::collections::HashMap;
+    
+    let mut entities: HashMap<String, (String, f32, Vec<usize>)> = HashMap::new();
+    
+    // Extract potential person names (capitalized word sequences)
+    if let Ok(re) = Regex::new(r"\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\b") {
+        for cap in re.captures_iter(text) {
+            if let Some(m) = cap.get(1) {
+                let name = m.as_str().to_string();
+                let pos = m.start();
+                
+                entities.entry(name.clone())
+                    .and_modify(|(_, conf, positions)| {
+                        *conf = (*conf + 0.1).min(0.95);
+                        positions.push(pos);
+                    })
+                    .or_insert(("person".to_string(), 0.6, vec![pos]));
+            }
+        }
+    }
+    
+    // Extract potential organizations
+    if let Ok(re) = Regex::new(r"\b([A-Z][A-Za-z]*(?:\s+[A-Z][A-Za-z]*)*\s+(?:Inc|Corp|Ltd|LLC|Company|Corporation|Foundation|Institute|University))\b") {
+        for cap in re.captures_iter(text) {
+            if let Some(m) = cap.get(1) {
+                let org = m.as_str().to_string();
+                let pos = m.start();
+                
+                entities.entry(org.clone())
+                    .and_modify(|(entity_type, conf, positions)| {
+                        *entity_type = "organization".to_string();
+                        *conf = (*conf + 0.1).min(0.95);
+                        positions.push(pos);
+                    })
+                    .or_insert(("organization".to_string(), 0.75, vec![pos]));
+            }
+        }
+    }
+    
+    // Extract URLs as website entities
+    if let Ok(re) = Regex::new(r"https?://([a-zA-Z0-9.-]+)") {
+        for cap in re.captures_iter(text) {
+            if let Some(m) = cap.get(1) {
+                let domain = m.as_str().to_string();
+                let pos = m.start();
+                
+                entities.entry(domain.clone())
+                    .or_insert(("website".to_string(), 0.9, vec![pos]));
+            }
+        }
+    }
+    
+    // Convert to vector and sort by confidence
+    let mut result: Vec<(String, String, f32, Vec<usize>)> = entities
+        .into_iter()
+        .map(|(name, (entity_type, conf, positions))| (name, entity_type, conf, positions))
+        .collect();
+    
+    result.sort_by(|a, b| b.2.partial_cmp(&a.2).unwrap_or(std::cmp::Ordering::Equal));
+    
+    result
+}
+
+/// Analyze sentiment of text
+fn analyze_sentiment_internal(text: &str) -> (String, f32) {
+    const POSITIVE_WORDS: &[&str] = &[
+        "good", "great", "excellent", "amazing", "wonderful", "fantastic",
+        "awesome", "best", "love", "happy", "beautiful", "perfect",
+        "brilliant", "outstanding", "superb", "incredible", "positive",
+        "success", "successful", "win", "winner", "benefit", "helpful",
+        "easy", "simple", "fast", "efficient", "effective", "recommend",
+        "like", "enjoy", "pleased", "satisfied", "impressive", "innovative"
+    ];
+    
+    const NEGATIVE_WORDS: &[&str] = &[
+        "bad", "terrible", "awful", "horrible", "worst", "hate", "poor",
+        "disappointing", "disappointed", "fail", "failure", "problem",
+        "issue", "bug", "error", "wrong", "broken", "slow", "difficult",
+        "hard", "complicated", "confusing", "frustrating", "annoying",
+        "useless", "waste", "expensive", "overpriced", "scam", "fake",
+        "never", "cannot", "impossible", "unfortunately", "sadly"
+    ];
+    
+    let tokens = tokenize(text);
+    
+    let positive_count = tokens.iter()
+        .filter(|t| POSITIVE_WORDS.contains(&t.as_str()))
+        .count();
+    
+    let negative_count = tokens.iter()
+        .filter(|t| NEGATIVE_WORDS.contains(&t.as_str()))
+        .count();
+    
+    let total = positive_count + negative_count;
+    let score = if total > 0 {
+        (positive_count as f32 - negative_count as f32) / total as f32
+    } else {
+        0.0
+    };
+    
+    let label = if score > 0.3 {
+        "positive"
+    } else if score < -0.3 {
+        "negative"
+    } else {
+        "neutral"
+    };
+    
+    (label.to_string(), score)
+}
+
+/// Suggest groups from page contents
+fn suggest_groups_internal(contents: &[PageContentInput], similarity_threshold: f64) -> Vec<(String, String, Vec<String>, f32)> {
+    if contents.is_empty() {
+        return Vec::new();
+    }
+    
+    let mut suggestions = Vec::new();
+    let mut assigned = vec![false; contents.len()];
+    
+    for i in 0..contents.len() {
+        if assigned[i] {
+            continue;
+        }
+        
+        let mut group_indices = vec![i];
+        assigned[i] = true;
+        
+        for j in (i + 1)..contents.len() {
+            if assigned[j] {
+                continue;
+            }
+            
+            let similarity = calculate_cosine_similarity(&contents[i].text, &contents[j].text);
+            
+            if similarity >= similarity_threshold {
+                group_indices.push(j);
+                assigned[j] = true;
+            }
+        }
+        
+        // Only create group if more than one page
+        if group_indices.len() > 1 {
+            // Find common words for group name
+            let texts: Vec<&str> = group_indices.iter()
+                .map(|&idx| contents[idx].text.as_str())
+                .collect();
+            
+            let common_words = find_common_words(&texts, 3);
+            
+            let group_name = if !common_words.is_empty() {
+                common_words.join(" & ")
+            } else {
+                format!("Group {}", suggestions.len() + 1)
+            };
+            
+            let description = format!("A collection of {} related pages", group_indices.len());
+            let page_ids: Vec<String> = group_indices.iter().map(|&idx| idx.to_string()).collect();
+            
+            suggestions.push((group_name, description, page_ids, similarity_threshold as f32));
+        }
+    }
+    
+    suggestions
+}
+
+/// Find common words across multiple texts
+fn find_common_words(texts: &[&str], max_words: usize) -> Vec<String> {
+    use std::collections::HashMap;
+    
+    let mut word_counts: HashMap<String, usize> = HashMap::new();
+    
+    for text in texts {
+        let mut seen_in_doc: std::collections::HashSet<String> = std::collections::HashSet::new();
+        let tokens = tokenize(text);
+        
+        for token in tokens {
+            if token.len() > 3 && !seen_in_doc.contains(&token) {
+                *word_counts.entry(token.clone()).or_insert(0) += 1;
+                seen_in_doc.insert(token);
+            }
+        }
+    }
+    
+    let mut sorted: Vec<(String, usize)> = word_counts.into_iter().collect();
+    sorted.sort_by(|a, b| b.1.cmp(&a.1));
+    
+    sorted.into_iter()
+        .take(max_words)
+        .map(|(word, _)| word)
+        .collect()
+}
+
+/// Generate cross-content recommendations
+fn generate_cross_recommendations_internal(contents: &[PageContentInput], min_relevance: f32) -> Vec<(String, String, f32, String, Vec<String>)> {
+    if contents.len() < 2 {
+        return Vec::new();
+    }
+    
+    let mut recommendations = Vec::new();
+    
+    for i in 0..contents.len() {
+        for j in (i + 1)..contents.len() {
+            // Calculate content similarity
+            let text_sim = calculate_cosine_similarity(&contents[i].text, &contents[j].text);
+            
+            // Calculate keyword overlap
+            let keyword_sim = calculate_jaccard_similarity(&contents[i].keywords, &contents[j].keywords);
+            
+            // Combined relevance score
+            let relevance = (0.6 * text_sim + 0.4 * keyword_sim) as f32;
+            
+            if relevance >= min_relevance {
+                // Find common keywords
+                let common_topics: Vec<String> = contents[i].keywords.iter()
+                    .filter(|kw| contents[j].keywords.contains(kw))
+                    .cloned()
+                    .collect();
+                
+                // Generate reason
+                let reason = if !common_topics.is_empty() {
+                    let topic_str = if common_topics.len() > 1 {
+                        format!("{} and {} more topics", common_topics[0], common_topics.len() - 1)
+                    } else {
+                        common_topics[0].clone()
+                    };
+                    format!("Both pages discuss: {}", topic_str)
+                } else if relevance > 0.7 {
+                    "Highly similar content".to_string()
+                } else {
+                    "Related content".to_string()
+                };
+                
+                recommendations.push((
+                    i.to_string(),
+                    j.to_string(),
+                    relevance,
+                    reason,
+                    common_topics,
+                ));
+            }
+        }
+    }
+    
+    // Sort by relevance
+    recommendations.sort_by(|a, b| b.2.partial_cmp(&a.2).unwrap_or(std::cmp::Ordering::Equal));
+    
+    recommendations
+}
+
+/// Calculate Jaccard similarity between two keyword sets
+fn calculate_jaccard_similarity(keywords_a: &[String], keywords_b: &[String]) -> f64 {
+    if keywords_a.is_empty() && keywords_b.is_empty() {
+        return 1.0;
+    }
+    
+    if keywords_a.is_empty() || keywords_b.is_empty() {
+        return 0.0;
+    }
+    
+    let set_a: std::collections::HashSet<&String> = keywords_a.iter().collect();
+    let set_b: std::collections::HashSet<&String> = keywords_b.iter().collect();
+    
+    let intersection = set_a.intersection(&set_b).count();
+    let union = set_a.union(&set_b).count();
+    
+    if union == 0 {
+        return 0.0;
+    }
+    
+    intersection as f64 / union as f64
 }
 
 

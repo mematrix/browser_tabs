@@ -70,6 +70,14 @@ struct RelevanceScore {
     std::vector<std::string> common_keywords;
 };
 
+/// Entity information extracted from content
+struct EntityInfo {
+    std::string name;
+    std::string type;  // person, organization, location, product, etc.
+    float confidence;
+    std::vector<size_t> positions;  // positions in text where entity appears
+};
+
 /// Content analysis result
 struct ContentAnalysis {
     ContentSummary summary;
@@ -77,6 +85,8 @@ struct ContentAnalysis {
     std::vector<std::string> entities;
     std::vector<std::string> topics;
     std::string sentiment;
+    std::vector<EntityInfo> detailed_entities;
+    float sentiment_score;  // -1.0 (negative) to 1.0 (positive)
 };
 
 /// Topic information
@@ -84,6 +94,31 @@ struct TopicInfo {
     std::string main_topic;
     std::vector<std::string> sub_topics;
     float confidence;
+};
+
+/// Page structure information
+struct PageStructure {
+    size_t heading_count;
+    size_t paragraph_count;
+    size_t list_count;
+    size_t table_count;
+    size_t form_count;
+    size_t media_count;
+    std::vector<std::string> headings;
+    std::vector<std::string> sections;
+    bool has_navigation;
+    bool has_sidebar;
+    bool has_footer;
+    float content_density;  // ratio of content to total page size
+};
+
+/// Cross-content recommendation
+struct CrossRecommendation {
+    std::string source_id;
+    std::string target_id;
+    float relevance_score;
+    std::string reason;
+    std::vector<std::string> common_topics;
 };
 
 /// Processing capabilities
@@ -134,6 +169,21 @@ public:
     ContentAnalysis AnalyzePageStructure(const PageContent& content);
     std::vector<std::string> ExtractPageMetadata(const PageContent& content);
     TopicInfo IdentifyMainTopics(const PageContent& content);
+    
+    /// Enhanced page structure analysis
+    PageStructure AnalyzePageLayout(const PageContent& content);
+    
+    /// Entity extraction from content
+    std::vector<EntityInfo> ExtractEntities(const PageContent& content);
+    
+    /// Sentiment analysis
+    std::pair<std::string, float> AnalyzeSentiment(const std::string& text);
+    
+    /// Cross-content recommendations
+    std::vector<CrossRecommendation> GenerateCrossRecommendations(
+        const std::vector<PageContent>& pages,
+        float min_relevance = 0.5f
+    );
     
     /// Configuration and optimization
     void SetProcessingMode(ProcessingMode mode);

@@ -629,5 +629,308 @@ std::vector<std::string> ContentAnalyzer::ExtractKeyPoints(const std::string& te
     return key_points;
 }
 
+PageStructure ContentAnalyzer::AnalyzePageStructure(const std::string& html) {
+    PageStructure structure;
+    structure.heading_count = 0;
+    structure.paragraph_count = 0;
+    structure.list_count = 0;
+    structure.table_count = 0;
+    structure.form_count = 0;
+    structure.media_count = 0;
+    structure.has_navigation = false;
+    structure.has_sidebar = false;
+    structure.has_footer = false;
+    structure.content_density = 0.0f;
+    
+    if (html.empty()) {
+        return structure;
+    }
+    
+    // Count headings (h1-h6)
+    for (int i = 1; i <= 6; ++i) {
+        std::string tag = "h" + std::to_string(i);
+        std::regex heading_regex("<" + tag + "[^>]*>", std::regex::icase);
+        auto begin = std::sregex_iterator(html.begin(), html.end(), heading_regex);
+        auto end = std::sregex_iterator();
+        structure.heading_count += std::distance(begin, end);
+    }
+    
+    // Extract headings text
+    structure.headings = ExtractHeadings(html);
+    
+    // Count paragraphs
+    std::regex p_regex("<p[^>]*>", std::regex::icase);
+    auto p_begin = std::sregex_iterator(html.begin(), html.end(), p_regex);
+    auto p_end = std::sregex_iterator();
+    structure.paragraph_count = std::distance(p_begin, p_end);
+    
+    // Count lists (ul, ol)
+    std::regex list_regex("<(ul|ol)[^>]*>", std::regex::icase);
+    auto list_begin = std::sregex_iterator(html.begin(), html.end(), list_regex);
+    auto list_end = std::sregex_iterator();
+    structure.list_count = std::distance(list_begin, list_end);
+    
+    // Count tables
+    std::regex table_regex("<table[^>]*>", std::regex::icase);
+    auto table_begin = std::sregex_iterator(html.begin(), html.end(), table_regex);
+    auto table_end = std::sregex_iterator();
+    structure.table_count = std::distance(table_begin, table_end);
+    
+    // Count forms
+    std::regex form_regex("<form[^>]*>", std::regex::icase);
+    auto form_begin = std::sregex_iterator(html.begin(), html.end(), form_regex);
+    auto form_end = std::sregex_iterator();
+    structure.form_count = std::distance(form_begin, form_end);
+    
+    // Count media elements (img, video, audio)
+    std::regex media_regex("<(img|video|audio)[^>]*>", std::regex::icase);
+    auto media_begin = std::sregex_iterator(html.begin(), html.end(), media_regex);
+    auto media_end = std::sregex_iterator();
+    structure.media_count = std::distance(media_begin, media_end);
+    
+    // Check for navigation
+    std::regex nav_regex("<nav[^>]*>|class=[\"'][^\"']*nav[^\"']*[\"']|id=[\"'][^\"']*nav[^\"']*[\"']", std::regex::icase);
+    structure.has_navigation = std::regex_search(html, nav_regex);
+    
+    // Check for sidebar
+    std::regex sidebar_regex("class=[\"'][^\"']*sidebar[^\"']*[\"']|id=[\"'][^\"']*sidebar[^\"']*[\"']|<aside[^>]*>", std::regex::icase);
+    structure.has_sidebar = std::regex_search(html, sidebar_regex);
+    
+    // Check for footer
+    std::regex footer_regex("<footer[^>]*>|class=[\"'][^\"']*footer[^\"']*[\"']|id=[\"'][^\"']*footer[^\"']*[\"']", std::regex::icase);
+    structure.has_footer = std::regex_search(html, footer_regex);
+    
+    // Calculate content density
+    std::string text = ExtractText(html);
+    if (!html.empty()) {
+        structure.content_density = static_cast<float>(text.length()) / static_cast<float>(html.length());
+    }
+    
+    // Extract sections based on headings
+    for (const auto& heading : structure.headings) {
+        if (!heading.empty()) {
+            structure.sections.push_back(heading);
+        }
+    }
+    
+    return structure;
+}
+
+std::vector<std::string> ContentAnalyzer::ExtractHeadings(const std::string& html) {
+    std::vector<std::string> headings;
+    
+    // Match h1-h6 tags and extract content
+    std::regex heading_regex("<h([1-6])[^>]*>([^<]*)</h\\1>", std::regex::icase);
+    
+    auto begin = std::sregex_iterator(html.begin(), html.end(), heading_regex);
+    auto end = std::sregex_iterator();
+    
+    for (auto it = begin; it != end; ++it) {
+        std::string heading_text = (*it)[2].str();
+        // Trim whitespace
+        size_t start = heading_text.find_first_not_of(" \t\n\r");
+        size_t end_pos = heading_text.find_last_not_of(" \t\n\r");
+        if (start != std::string::npos && end_pos != std::string::npos) {
+            headings.push_back(heading_text.substr(start, end_pos - start + 1));
+        }
+    }
+    
+    return headings;
+}
+
+std::vector<EntityInfo> ContentAnalyzer::ExtractEntities(const std::string& text) {
+    std::vector<EntityInfo> entities;
+    
+    if (text.empty()) {
+        return entities;
+    }
+    
+    // Simple entity extraction using pattern matching
+    // In a production system, this would use NER models
+    
+    // Extract potential person names (capitalized word sequences)
+    std::regex name_regex("\\b([A-Z][a-z]+(?:\\s+[A-Z][a-z]+)+)\\b");
+    auto name_begin = std::sregex_iterator(text.begin(), text.end(), name_regex);
+    auto name_end = std::sregex_iterator();
+    
+    std::unordered_map<std::string, EntityInfo> entity_map;
+    
+    for (auto it = name_begin; it != name_end; ++it) {
+        std::string name = (*it)[1].str();
+        size_t pos = it->position();
+        
+        if (entity_map.find(name) == entity_map.end()) {
+            EntityInfo info;
+            info.name = name;
+            info.type = "person";
+            info.confidence = 0.6f;
+            info.positions.push_back(pos);
+            entity_map[name] = info;
+        } else {
+            entity_map[name].positions.push_back(pos);
+            // Increase confidence with more occurrences
+            entity_map[name].confidence = std::min(0.95f, entity_map[name].confidence + 0.1f);
+        }
+    }
+    
+    // Extract potential organizations (words ending in Inc, Corp, Ltd, etc.)
+    std::regex org_regex("\\b([A-Z][A-Za-z]*(?:\\s+[A-Z][A-Za-z]*)*\\s+(?:Inc|Corp|Ltd|LLC|Company|Corporation|Foundation|Institute|University))\\b");
+    auto org_begin = std::sregex_iterator(text.begin(), text.end(), org_regex);
+    auto org_end = std::sregex_iterator();
+    
+    for (auto it = org_begin; it != org_end; ++it) {
+        std::string org = (*it)[1].str();
+        size_t pos = it->position();
+        
+        if (entity_map.find(org) == entity_map.end()) {
+            EntityInfo info;
+            info.name = org;
+            info.type = "organization";
+            info.confidence = 0.75f;
+            info.positions.push_back(pos);
+            entity_map[org] = info;
+        } else {
+            entity_map[org].type = "organization";  // Override type
+            entity_map[org].positions.push_back(pos);
+            entity_map[org].confidence = std::min(0.95f, entity_map[org].confidence + 0.1f);
+        }
+    }
+    
+    // Extract URLs as potential product/service entities
+    std::regex url_regex("https?://([a-zA-Z0-9.-]+)");
+    auto url_begin = std::sregex_iterator(text.begin(), text.end(), url_regex);
+    auto url_end = std::sregex_iterator();
+    
+    for (auto it = url_begin; it != url_end; ++it) {
+        std::string domain = (*it)[1].str();
+        size_t pos = it->position();
+        
+        if (entity_map.find(domain) == entity_map.end()) {
+            EntityInfo info;
+            info.name = domain;
+            info.type = "website";
+            info.confidence = 0.9f;
+            info.positions.push_back(pos);
+            entity_map[domain] = info;
+        }
+    }
+    
+    // Convert map to vector
+    for (const auto& pair : entity_map) {
+        entities.push_back(pair.second);
+    }
+    
+    // Sort by confidence
+    std::sort(entities.begin(), entities.end(),
+              [](const EntityInfo& a, const EntityInfo& b) {
+                  return a.confidence > b.confidence;
+              });
+    
+    return entities;
+}
+
+std::pair<std::string, float> ContentAnalyzer::AnalyzeSentiment(const std::string& text) {
+    if (text.empty()) {
+        return {"neutral", 0.0f};
+    }
+    
+    // Simple lexicon-based sentiment analysis
+    // Positive words
+    static const std::unordered_set<std::string> positive_words = {
+        "good", "great", "excellent", "amazing", "wonderful", "fantastic",
+        "awesome", "best", "love", "happy", "beautiful", "perfect",
+        "brilliant", "outstanding", "superb", "incredible", "positive",
+        "success", "successful", "win", "winner", "benefit", "helpful",
+        "easy", "simple", "fast", "efficient", "effective", "recommend",
+        "like", "enjoy", "pleased", "satisfied", "impressive", "innovative"
+    };
+    
+    // Negative words
+    static const std::unordered_set<std::string> negative_words = {
+        "bad", "terrible", "awful", "horrible", "worst", "hate", "poor",
+        "disappointing", "disappointed", "fail", "failure", "problem",
+        "issue", "bug", "error", "wrong", "broken", "slow", "difficult",
+        "hard", "complicated", "confusing", "frustrating", "annoying",
+        "useless", "waste", "expensive", "overpriced", "scam", "fake",
+        "never", "cannot", "impossible", "unfortunately", "sadly"
+    };
+    
+    // Tokenize and count sentiment words
+    auto tokens = impl_->Tokenize(text);
+    
+    int positive_count = 0;
+    int negative_count = 0;
+    
+    for (const auto& token : tokens) {
+        if (positive_words.count(token)) {
+            positive_count++;
+        }
+        if (negative_words.count(token)) {
+            negative_count++;
+        }
+    }
+    
+    // Calculate sentiment score
+    int total_sentiment_words = positive_count + negative_count;
+    float score = 0.0f;
+    
+    if (total_sentiment_words > 0) {
+        score = static_cast<float>(positive_count - negative_count) / 
+                static_cast<float>(total_sentiment_words);
+    }
+    
+    // Determine sentiment label
+    std::string label;
+    if (score > 0.3f) {
+        label = "positive";
+    } else if (score < -0.3f) {
+        label = "negative";
+    } else {
+        label = "neutral";
+    }
+    
+    return {label, score};
+}
+
+std::vector<std::string> ContentAnalyzer::ExtractTopics(const std::string& text, size_t max_topics) {
+    if (text.empty()) {
+        return {};
+    }
+    
+    // Extract keywords as potential topics
+    auto keywords = ExtractKeywordsFromText(text, max_topics * 2);
+    
+    // Filter and cluster keywords into topics
+    std::vector<std::string> topics;
+    std::unordered_set<std::string> seen;
+    
+    for (const auto& keyword : keywords) {
+        // Skip very short keywords
+        if (keyword.length() < 4) continue;
+        
+        // Check if similar topic already exists
+        bool is_duplicate = false;
+        for (const auto& topic : topics) {
+            // Simple substring check for similarity
+            if (topic.find(keyword) != std::string::npos ||
+                keyword.find(topic) != std::string::npos) {
+                is_duplicate = true;
+                break;
+            }
+        }
+        
+        if (!is_duplicate && seen.find(keyword) == seen.end()) {
+            topics.push_back(keyword);
+            seen.insert(keyword);
+            
+            if (topics.size() >= max_topics) {
+                break;
+            }
+        }
+    }
+    
+    return topics;
+}
+
 } // namespace ai
 } // namespace web_page_manager

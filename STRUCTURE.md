@@ -192,6 +192,42 @@ The AI content processor implementation includes:
 - Topic identification from keywords
 - Processing capabilities reporting
 
+## Enhanced AI Processor and Smart Grouping (Task 4.3)
+
+### C++ AI Processor Enhancements (ai-processor/)
+
+#### Page Structure Analysis (`AnalyzePageLayout`)
+- Counts headings, paragraphs, lists, tables, forms, and media elements
+- Extracts heading texts and sections
+- Detects navigation, sidebar, and footer elements
+- Calculates content density
+
+#### Entity Extraction (`ExtractEntities`)
+- Extracts person names (capitalized word sequences)
+- Extracts organizations (Inc, Corp, Ltd, etc.)
+- Extracts website domains from URLs
+- Returns confidence scores and positions
+
+#### Sentiment Analysis (`AnalyzeSentiment`)
+- Lexicon-based sentiment analysis
+- Returns sentiment label (positive/negative/neutral) and score (-1.0 to 1.0)
+
+#### Topic Extraction (`ExtractTopics`)
+- Keyword clustering for topic identification
+- Filters duplicates and similar topics
+
+#### Smart Grouping Enhancements (GroupSuggester)
+- `SuggestGroupsCombined`: Combines content, domain, and topic-based grouping
+- `GenerateCrossRecommendations`: Generates cross-content recommendations with relevance scores
+- `RankSuggestions`: Ranks group suggestions by quality
+- `DetectClusters`: Hierarchical clustering using similarity matrix
+
+### Rust FFI Layer (ai-processor-ffi/)
+- Added C-compatible structs for new data types (`CPageStructure`, `CEntityInfo`, `CCrossRecommendation`, `CGroupSuggestion`)
+- Implemented FFI functions for all new features
+- Added proper memory management (free functions)
+- Internal helper functions for page structure analysis, entity extraction, sentiment analysis, and grouping
+
 ## Build System
 
 - Cargo workspace for Rust modules

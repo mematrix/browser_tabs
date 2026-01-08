@@ -214,14 +214,28 @@ ContentAnalysis AIContentProcessor::AnalyzePageStructure(const PageContent& cont
     analysis.summary = GenerateSummary(content);
     analysis.category = ClassifyContent(content);
     
-    // TODO: Implement entity extraction
-    analysis.entities = {};
+    // Extract text for analysis
+    std::string text_to_analyze = content.text;
+    if (text_to_analyze.empty() && !content.html.empty()) {
+        text_to_analyze = impl_->content_analyzer_->ExtractText(content.html);
+    }
     
-    // TODO: Implement topic extraction
-    analysis.topics = {};
+    // Extract entities
+    auto detailed_entities = impl_->content_analyzer_->ExtractEntities(text_to_analyze);
+    analysis.detailed_entities = detailed_entities;
     
-    // TODO: Implement sentiment analysis
-    analysis.sentiment = "neutral";
+    // Convert to simple string list for backward compatibility
+    for (const auto& entity : detailed_entities) {
+        analysis.entities.push_back(entity.name);
+    }
+    
+    // Extract topics
+    analysis.topics = impl_->content_analyzer_->ExtractTopics(text_to_analyze, 5);
+    
+    // Analyze sentiment
+    auto [sentiment_label, sentiment_score] = impl_->content_analyzer_->AnalyzeSentiment(text_to_analyze);
+    analysis.sentiment = sentiment_label;
+    analysis.sentiment_score = sentiment_score;
     
     return analysis;
 }
@@ -248,19 +262,59 @@ std::vector<std::string> AIContentProcessor::ExtractPageMetadata(const PageConte
 TopicInfo AIContentProcessor::IdentifyMainTopics(const PageContent& content) {
     TopicInfo info;
     
-    // Simple topic identification based on keywords
-    if (!content.keywords.empty()) {
+    // Extract text for analysis
+    std::string text_to_analyze = content.text;
+    if (text_to_analyze.empty() && !content.html.empty()) {
+        text_to_analyze = impl_->content_analyzer_->ExtractText(content.html);
+    }
+    
+    // Extract topics using content analyzer
+    auto topics = impl_->content_analyzer_->ExtractTopics(text_to_analyze, 6);
+    
+    if (!topics.empty()) {
+        info.main_topic = topics[0];
+        
+        for (size_t i = 1; i < topics.size(); ++i) {
+            info.sub_topics.push_back(topics[i]);
+        }
+        info.confidence = 0.75f;
+    } else if (!content.keywords.empty()) {
+        // Fall back to keywords
         info.main_topic = content.keywords[0];
         
         for (size_t i = 1; i < content.keywords.size() && i < 5; ++i) {
             info.sub_topics.push_back(content.keywords[i]);
         }
+        info.confidence = 0.6f;
     } else {
         info.main_topic = "General";
+        info.confidence = 0.3f;
     }
     
-    info.confidence = 0.7f;
     return info;
+}
+
+PageStructure AIContentProcessor::AnalyzePageLayout(const PageContent& content) {
+    return impl_->content_analyzer_->AnalyzePageStructure(content.html);
+}
+
+std::vector<EntityInfo> AIContentProcessor::ExtractEntities(const PageContent& content) {
+    std::string text_to_analyze = content.text;
+    if (text_to_analyze.empty() && !content.html.empty()) {
+        text_to_analyze = impl_->content_analyzer_->ExtractText(content.html);
+    }
+    return impl_->content_analyzer_->ExtractEntities(text_to_analyze);
+}
+
+std::pair<std::string, float> AIContentProcessor::AnalyzeSentiment(const std::string& text) {
+    return impl_->content_analyzer_->AnalyzeSentiment(text);
+}
+
+std::vector<CrossRecommendation> AIContentProcessor::GenerateCrossRecommendations(
+    const std::vector<PageContent>& pages,
+    float min_relevance
+) {
+    return impl_->group_suggester_->GenerateCrossRecommendations(pages, min_relevance);
 }
 
 void AIContentProcessor::SetProcessingMode(ProcessingMode mode) {

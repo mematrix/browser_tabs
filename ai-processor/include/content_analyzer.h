@@ -58,6 +58,32 @@ public:
     /// @return A vector of key point sentences
     std::vector<std::string> ExtractKeyPoints(const std::string& text, size_t max_points = 5);
     
+    /// Analyze page structure from HTML
+    /// @param html The HTML content to analyze
+    /// @return PageStructure containing structural information
+    PageStructure AnalyzePageStructure(const std::string& html);
+    
+    /// Extract headings from HTML
+    /// @param html The HTML content
+    /// @return Vector of heading texts (h1-h6)
+    std::vector<std::string> ExtractHeadings(const std::string& html);
+    
+    /// Extract named entities from text
+    /// @param text The text to analyze
+    /// @return Vector of EntityInfo with detected entities
+    std::vector<EntityInfo> ExtractEntities(const std::string& text);
+    
+    /// Analyze sentiment of text
+    /// @param text The text to analyze
+    /// @return Pair of sentiment label and score (-1.0 to 1.0)
+    std::pair<std::string, float> AnalyzeSentiment(const std::string& text);
+    
+    /// Extract topics from text using keyword clustering
+    /// @param text The text to analyze
+    /// @param max_topics Maximum number of topics to extract
+    /// @return Vector of topic strings
+    std::vector<std::string> ExtractTopics(const std::string& text, size_t max_topics = 5);
+    
 private:
     class Impl;
     std::unique_ptr<Impl> impl_;
