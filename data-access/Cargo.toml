@@ -11,6 +11,8 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 anyhow = { workspace = true }
 tracing = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
 
 # SQLite with async support
 rusqlite = { version = "0.31", features = ["bundled"] }
@@ -18,3 +20,6 @@ tokio-rusqlite = "0.5"
 
 # Async traits
 async-trait = "0.1"
+
+[dev-dependencies]
+proptest = "1.4"

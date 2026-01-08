@@ -221,6 +221,8 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "chrono",
+ "proptest",
  "rusqlite",
  "serde",
  "serde_json",
@@ -228,6 +230,7 @@ dependencies = [
  "tokio",
  "tokio-rusqlite",
  "tracing",
+ "uuid",
  "web-page-manager-core",
 ]
 
