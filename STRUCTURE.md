@@ -112,6 +112,36 @@
 - `get_filter_stats()` for privacy filter statistics
 - `get_recently_closed_tabs()` and `get_recent_tab_events()` for history access
 
+## Bookmark Import and Management (Task 3.4)
+
+### Bookmark Import Module (`bookmark_import.rs`)
+
+#### Bookmark Import Wizard and Auto-Detection (Requirement 2.1)
+- `BookmarkImporter` struct with methods to detect bookmark sources from Chrome, Edge, and Firefox
+- Platform-specific path detection for bookmark files (Windows, Linux, macOS)
+- `detect_bookmark_sources()` - auto-detects all installed browsers with bookmarks
+- `import_from_browser()` - imports bookmarks from a specific browser
+- `import_all()` - imports bookmarks from all detected sources
+
+#### Bookmark Data Parsing and Standardization
+- Chrome/Edge JSON bookmark parsing with recursive folder traversal
+- Firefox SQLite database parsing (places.sqlite)
+- Chrome timestamp conversion (Windows epoch to Unix)
+- Standardized `BookmarkInfo` output format across all browsers
+
+#### Bookmark Validation and Status Checking (Requirement 2.2)
+- `BookmarkValidator` struct for checking bookmark accessibility
+- `validate_bookmark()` - validates a single bookmark's URL
+- `validate_batch()` - validates multiple bookmarks concurrently
+- `ValidationReport` - comprehensive report with accessibility statistics
+- Support for detecting redirects, timeouts, 404s, and network errors
+
+#### Integration with BrowserConnectorManager
+- `create_bookmark_importer()` - factory method for creating importers
+- `create_bookmark_validator()` - factory method for creating validators
+- `import_all_bookmarks()` - convenience method for full import
+- `validate_bookmarks()` - convenience method for batch validation
+
 ## Build System
 
 - Cargo workspace for Rust modules

@@ -12,6 +12,7 @@
 //! - Browser instance lifecycle management
 //! - Tab state monitoring and change detection
 //! - Enhanced tab information extraction and categorization
+//! - Bookmark import from multiple browsers with validation
 
 pub mod traits;
 pub mod cdp;
@@ -19,6 +20,7 @@ pub mod firefox;
 pub mod privacy_filter;
 pub mod tab_monitor;
 pub mod tab_extractor;
+pub mod bookmark_import;
 
 pub use traits::*;
 pub use cdp::{ChromeConnector, EdgeConnector, CdpTarget, CdpVersion};
@@ -26,6 +28,10 @@ pub use firefox::FirefoxConnector;
 pub use privacy_filter::{PrivacyModeFilter, PrivacyFilterConfig, FilterStats};
 pub use tab_monitor::{TabMonitor, TabMonitorConfig, TabEvent, TabMonitorStats};
 pub use tab_extractor::{TabExtractor, ExtendedTabInfo, TabCategory, TabStats};
+pub use bookmark_import::{
+    BookmarkImporter, BookmarkValidator, BookmarkSource, ImportProgress, ImportStatus,
+    BookmarkValidationResult, ValidationReport, ChromeBookmarks, ChromeBookmarkNode,
+};
 
 use web_page_manager_core::*;
 use std::collections::HashMap;
@@ -598,6 +604,47 @@ impl BrowserConnectorManager {
     /// Get tab monitor statistics
     pub async fn get_monitor_stats(&self) -> TabMonitorStats {
         self.tab_monitor.get_stats().await
+    }
+
+    // ============================================================
+    // Bookmark Import Methods
+    // ============================================================
+
+    /// Create a new bookmark importer for detecting and importing bookmarks
+    /// 
+    /// This implements Requirement 2.1: Auto-detect bookmarks from all installed browsers
+    pub fn create_bookmark_importer(&self) -> BookmarkImporter {
+        BookmarkImporter::new()
+    }
+
+    /// Create a new bookmark validator for checking bookmark accessibility
+    /// 
+    /// This implements Requirement 2.2: Validate bookmark accessibility
+    pub fn create_bookmark_validator(&self) -> BookmarkValidator {
+        BookmarkValidator::new()
+    }
+
+    /// Create a bookmark validator with custom timeout
+    pub fn create_bookmark_validator_with_timeout(&self, timeout_secs: u64) -> BookmarkValidator {
+        BookmarkValidator::with_timeout(timeout_secs)
+    }
+
+    /// Import bookmarks from all detected browser sources
+    /// 
+    /// This is a convenience method that creates an importer, detects sources,
+    /// and imports all bookmarks in one call.
+    pub async fn import_all_bookmarks(&self) -> Result<HashMap<BrowserType, Vec<BookmarkInfo>>> {
+        let mut importer = BookmarkImporter::new();
+        importer.detect_bookmark_sources().await?;
+        importer.import_all().await
+    }
+
+    /// Validate a batch of bookmarks and generate a report
+    /// 
+    /// This implements Requirement 2.2: Generate status reports for bookmark validation
+    pub async fn validate_bookmarks(&self, bookmarks: &[BookmarkInfo]) -> ValidationReport {
+        let validator = BookmarkValidator::new();
+        validator.validate_batch(bookmarks).await
     }
 }
 
