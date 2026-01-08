@@ -26,5 +26,8 @@ async-trait = "0.1"
 # URL encoding for CDP API calls
 urlencoding = "2.1"
 
+# URL parsing for tab extraction
+url = "2.5"
+
 # Platform-specific directory paths
 dirs = "5.0"

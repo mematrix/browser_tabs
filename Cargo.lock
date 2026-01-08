@@ -116,6 +116,7 @@ dependencies = [
  "tokio",
  "tokio-tungstenite",
  "tracing",
+ "url",
  "urlencoding",
  "web-page-manager-core",
 ]

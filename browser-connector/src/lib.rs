@@ -10,16 +10,22 @@
 //! - WebExtensions Native Messaging support for Firefox
 //! - Privacy mode filtering to exclude incognito/private tabs
 //! - Browser instance lifecycle management
+//! - Tab state monitoring and change detection
+//! - Enhanced tab information extraction and categorization
 
 pub mod traits;
 pub mod cdp;
 pub mod firefox;
 pub mod privacy_filter;
+pub mod tab_monitor;
+pub mod tab_extractor;
 
 pub use traits::*;
 pub use cdp::{ChromeConnector, EdgeConnector, CdpTarget, CdpVersion};
 pub use firefox::FirefoxConnector;
-pub use privacy_filter::PrivacyModeFilter;
+pub use privacy_filter::{PrivacyModeFilter, PrivacyFilterConfig, FilterStats};
+pub use tab_monitor::{TabMonitor, TabMonitorConfig, TabEvent, TabMonitorStats};
+pub use tab_extractor::{TabExtractor, ExtendedTabInfo, TabCategory, TabStats};
 
 use web_page_manager_core::*;
 use std::collections::HashMap;
@@ -57,6 +63,8 @@ pub struct BrowserConnectorManager {
     connections: Arc<RwLock<HashMap<BrowserType, Box<dyn BrowserConnector>>>>,
     instances: Arc<RwLock<HashMap<BrowserType, ManagedBrowserInstance>>>,
     privacy_filter: PrivacyModeFilter,
+    tab_monitor: Arc<TabMonitor>,
+    tab_extractor: TabExtractor,
 }
 
 impl BrowserConnectorManager {
@@ -66,7 +74,38 @@ impl BrowserConnectorManager {
             connections: Arc::new(RwLock::new(HashMap::new())),
             instances: Arc::new(RwLock::new(HashMap::new())),
             privacy_filter: PrivacyModeFilter::new(),
+            tab_monitor: Arc::new(TabMonitor::new()),
+            tab_extractor: TabExtractor::new(),
         }
+    }
+
+    /// Create a new browser connector manager with custom configuration
+    pub fn with_config(
+        privacy_config: PrivacyFilterConfig,
+        monitor_config: TabMonitorConfig,
+    ) -> Self {
+        Self {
+            connections: Arc::new(RwLock::new(HashMap::new())),
+            instances: Arc::new(RwLock::new(HashMap::new())),
+            privacy_filter: PrivacyModeFilter::with_config(privacy_config),
+            tab_monitor: Arc::new(TabMonitor::with_config(monitor_config)),
+            tab_extractor: TabExtractor::new(),
+        }
+    }
+
+    /// Get a reference to the tab monitor
+    pub fn tab_monitor(&self) -> &Arc<TabMonitor> {
+        &self.tab_monitor
+    }
+
+    /// Get a reference to the tab extractor
+    pub fn tab_extractor(&self) -> &TabExtractor {
+        &self.tab_extractor
+    }
+
+    /// Get a reference to the privacy filter
+    pub fn privacy_filter(&self) -> &PrivacyModeFilter {
+        &self.privacy_filter
     }
 
     /// Detect all running browsers that support remote debugging
@@ -430,6 +469,135 @@ impl BrowserConnectorManager {
     pub async fn connected_count(&self) -> usize {
         let connections = self.connections.read().await;
         connections.len()
+    }
+
+    // ============================================================
+    // Enhanced Tab Extraction and Monitoring Methods
+    // ============================================================
+
+    /// Get extended tab information from a connected browser
+    /// 
+    /// This method returns tabs with additional metadata including
+    /// domain extraction, categorization, and URL analysis.
+    pub async fn get_extended_tabs(&self, browser_type: BrowserType) -> Result<Vec<ExtendedTabInfo>> {
+        let tabs = self.get_tabs(browser_type).await?;
+        Ok(self.tab_extractor.extract_all(&tabs))
+    }
+
+    /// Get extended tab information from all connected browsers
+    pub async fn get_all_extended_tabs(&self) -> HashMap<BrowserType, Vec<ExtendedTabInfo>> {
+        let all_tabs = self.get_all_tabs().await;
+        all_tabs.into_iter()
+            .map(|(browser_type, tabs)| {
+                (browser_type, self.tab_extractor.extract_all(&tabs))
+            })
+            .collect()
+    }
+
+    /// Get tabs grouped by domain from a specific browser
+    pub async fn get_tabs_by_domain(&self, browser_type: BrowserType) -> Result<HashMap<String, Vec<TabInfo>>> {
+        let tabs = self.get_tabs(browser_type).await?;
+        Ok(self.tab_extractor.group_by_domain(&tabs))
+    }
+
+    /// Get tabs grouped by domain from all connected browsers
+    pub async fn get_all_tabs_by_domain(&self) -> HashMap<String, Vec<TabInfo>> {
+        let all_tabs = self.get_all_tabs().await;
+        let mut grouped: HashMap<String, Vec<TabInfo>> = HashMap::new();
+        
+        for (_browser_type, tabs) in all_tabs {
+            let domain_groups = self.tab_extractor.group_by_domain(&tabs);
+            for (domain, domain_tabs) in domain_groups {
+                grouped.entry(domain).or_default().extend(domain_tabs);
+            }
+        }
+        
+        grouped
+    }
+
+    /// Get tabs grouped by category from a specific browser
+    pub async fn get_tabs_by_category(&self, browser_type: BrowserType) -> Result<HashMap<TabCategory, Vec<TabInfo>>> {
+        let tabs = self.get_tabs(browser_type).await?;
+        Ok(self.tab_extractor.group_by_category(&tabs))
+    }
+
+    /// Get tabs grouped by category from all connected browsers
+    pub async fn get_all_tabs_by_category(&self) -> HashMap<TabCategory, Vec<TabInfo>> {
+        let all_tabs = self.get_all_tabs().await;
+        let mut grouped: HashMap<TabCategory, Vec<TabInfo>> = HashMap::new();
+        
+        for (_browser_type, tabs) in all_tabs {
+            let category_groups = self.tab_extractor.group_by_category(&tabs);
+            for (category, category_tabs) in category_groups {
+                grouped.entry(category).or_default().extend(category_tabs);
+            }
+        }
+        
+        grouped
+    }
+
+    /// Get statistics about tabs from a specific browser
+    pub async fn get_tab_stats(&self, browser_type: BrowserType) -> Result<TabStats> {
+        let tabs = self.get_tabs(browser_type).await?;
+        Ok(self.tab_extractor.get_tab_stats(&tabs))
+    }
+
+    /// Get statistics about tabs from all connected browsers
+    pub async fn get_all_tab_stats(&self) -> TabStats {
+        let all_tabs = self.get_all_tabs().await;
+        let all_tabs_flat: Vec<TabInfo> = all_tabs.into_values().flatten().collect();
+        self.tab_extractor.get_tab_stats(&all_tabs_flat)
+    }
+
+    /// Update the tab monitor with current tabs and detect changes
+    /// 
+    /// This method fetches tabs from all connected browsers and updates
+    /// the tab monitor, returning any detected changes (new tabs, closed tabs,
+    /// navigation events, etc.)
+    pub async fn update_tab_monitor(&self) -> Vec<TabEvent> {
+        let all_tabs = self.get_all_tabs().await;
+        self.tab_monitor.update_tabs(all_tabs).await
+    }
+
+    /// Get filter statistics for tabs from a specific browser
+    /// 
+    /// This shows how many tabs were filtered out by the privacy filter
+    /// and the reasons for filtering.
+    pub async fn get_filter_stats(&self, browser_type: BrowserType) -> Result<FilterStats> {
+        let connections = self.connections.read().await;
+        
+        let connector = connections.get(&browser_type).ok_or_else(|| {
+            WebPageManagerError::BrowserConnection {
+                source: BrowserConnectionError::BrowserNotRunning {
+                    browser: browser_type,
+                },
+            }
+        })?;
+        
+        let all_tabs = connector.get_tabs().await?;
+        Ok(self.privacy_filter.get_filter_stats(&all_tabs))
+    }
+
+    /// Get recently closed tabs from the tab monitor
+    /// 
+    /// Returns tabs that were closed within the specified time window.
+    pub async fn get_recently_closed_tabs(&self, within_minutes: i64) -> Vec<TabInfo> {
+        self.tab_monitor.get_recently_closed_tabs(within_minutes).await
+    }
+
+    /// Get the current monitored tabs
+    pub async fn get_monitored_tabs(&self) -> Vec<TabInfo> {
+        self.tab_monitor.get_current_tabs().await
+    }
+
+    /// Get recent tab events from the monitor
+    pub async fn get_recent_tab_events(&self, count: usize) -> Vec<TabEvent> {
+        self.tab_monitor.get_recent_events(count).await
+    }
+
+    /// Get tab monitor statistics
+    pub async fn get_monitor_stats(&self) -> TabMonitorStats {
+        self.tab_monitor.get_stats().await
     }
 }
 

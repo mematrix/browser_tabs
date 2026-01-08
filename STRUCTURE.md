@@ -78,6 +78,40 @@
 - Methods for connecting to all detected browsers
 - Aggregated tab/bookmark retrieval across browsers
 
+## Tab Data Extraction and Filtering (Task 3.3)
+
+### Enhanced Privacy Mode Filter (`privacy_filter.rs`)
+- Extended filtering beyond just `is_private` flag
+- URL pattern detection for privacy-sensitive URLs (settings, passwords, history pages)
+- Filtering for browser internal pages (`chrome://`, `edge://`, `about:`)
+- Filtering for extension pages (`chrome-extension://`, `moz-extension://`)
+- Configurable filter options via `PrivacyFilterConfig`
+- `FilterStats` for reporting filtering statistics
+
+### Tab State Monitor (`tab_monitor.rs`)
+- `TabMonitor` for tracking tab state changes across browsers
+- Detection of tab events: Created, Closed, Navigated, TitleChanged, Activated, LoadingStateChanged
+- Event history with configurable retention
+- Event subscription via async channels
+- Methods to get recently closed tabs and event statistics
+
+### Tab Information Extractor (`tab_extractor.rs`)
+- `TabExtractor` for enhanced tab metadata extraction
+- URL parsing to extract domain, subdomain, path, and query parameters
+- Automatic tab categorization (Search, SocialMedia, Video, News, Shopping, Development, etc.)
+- Methods to group tabs by domain or category
+- `TabStats` for comprehensive tab statistics
+
+### BrowserConnectorManager Integration
+- `with_config()` constructor for custom privacy and monitor configuration
+- `get_extended_tabs()` and `get_all_extended_tabs()` for enhanced tab info
+- `get_tabs_by_domain()` and `get_all_tabs_by_domain()` for domain grouping
+- `get_tabs_by_category()` and `get_all_tabs_by_category()` for category grouping
+- `get_tab_stats()` and `get_all_tab_stats()` for statistics
+- `update_tab_monitor()` for change detection
+- `get_filter_stats()` for privacy filter statistics
+- `get_recently_closed_tabs()` and `get_recent_tab_events()` for history access
+
 ## Build System
 
 - Cargo workspace for Rust modules
