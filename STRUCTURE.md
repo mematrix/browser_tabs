@@ -948,3 +948,104 @@ A complete cross-platform Flutter UI implementation for the Web Page Manager app
 - **Requirement 4.2**: System tray with quick access functionality (Windows, Linux, macOS)
 - **Requirement 4.3**: Native notifications for tab activity
 - **Requirement 6.5**: Unified search across tabs and bookmarks with filtering and sorting
+
+
+## Unified UI Manager Interface (Task 10.3)
+
+### Enhanced UI Manager Trait (`ui-manager/src/traits.rs`)
+
+#### New Interface Methods
+- `hide_main_window()` - Hide the main window without minimizing to tray
+- `restore_from_tray()` - Restore application from system tray
+- `unregister_global_hotkeys()` - Remove all registered global hotkeys
+- `set_theme()` / `get_theme()` - Theme management (Light, Dark, System)
+- `set_event_handler()` - Register event handler for UI events
+- `get_state()` - Get current UI state
+
+#### New Data Structures
+- `NotificationConfig` - Rich notification configuration with title, message, urgency, actions, and timeout
+- `NotificationUrgency` - Urgency levels (Low, Normal, High, Critical)
+- `NotificationAction` - Action button for notifications
+- `UITheme` - Theme options (Light, Dark, System)
+- `UIState` - Current UI state (initialized, window_visible, minimized_to_tray, current_theme, registered_hotkey_count, has_event_handler)
+- `NoOpEventHandler` - No-op event handler for testing
+
+#### Enhanced UICapabilities
+- `supports_custom_decorations` - Custom window decorations support
+- `supports_drag_drop` - Drag and drop support
+
+#### UIManagerAdapter
+- Generic adapter wrapper for any UIManager implementation
+- Provides consistent logging for all operations
+- State tracking across all UI operations
+- Implements full UIManager trait
+
+#### Enhanced UIEvent Types
+- `WindowFocused` / `WindowBlurred` - Window focus events
+- `NotificationActionClicked` - Notification action button clicks
+- `TrayIconDoubleClicked` - Tray icon double-click
+- `TrayMenuItemSelected` - Tray context menu selection
+- `ThemeChanged` - Theme change events
+- `ApplicationQuitting` - Application quit event
+
+### Factory Enhancements (`ui-manager/src/lib.rs`)
+
+#### New Factory Methods
+- `available_frameworks()` - Get list of available UI frameworks on current platform
+- `default_framework()` - Get recommended framework for current platform
+- `is_framework_available()` - Check if a specific framework is available
+
+#### UIConfiguration
+- `current()` - Get current UI configuration
+- `current_platform()` - Get current platform name
+- Contains framework, availability, capabilities, and platform info
+
+#### Factory Behavior
+- All factory methods now wrap implementations in `UIManagerAdapter` for consistent logging
+- Compile-time feature selection via Cargo features (flutter-ui, winui-ui, gtk-ui, qt-ui)
+- Default to Flutter if no specific UI is selected
+
+### Framework Implementations
+
+All framework implementations (Flutter, WinUI, GTK, Qt) updated to implement the full interface:
+
+#### Common Features Across All Implementations
+- State tracking (window visibility, tray status, theme, hotkeys, event handlers)
+- Configuration options for enabling/disabling features
+- Proper initialization and shutdown lifecycle
+- Platform-specific capability reporting
+
+#### Flutter (`ui-manager/src/flutter.rs`)
+- Added `THEME_CHANNEL` for theme management
+- `initial_theme` configuration option
+- Full state management with event handler support
+
+#### WinUI (`ui-manager/src/native/winui.rs`)
+- Windows-only implementation with stub for other platforms
+- Jump Lists and Live Tiles capability support
+- Windows-specific configuration options
+
+#### GTK (`ui-manager/src/native/gtk.rs`)
+- Linux-focused implementation
+- Application ID configuration
+- Cross-platform capability (Linux, Windows, macOS)
+
+#### Qt (`ui-manager/src/native/qt.rs`)
+- Cross-platform implementation
+- Organization and application name configuration
+- Jump Lists support on Windows
+
+### Unit Tests (15 tests)
+- Factory creation and framework selection
+- Available frameworks detection
+- Framework availability checking
+- UI configuration retrieval
+- Flutter manager creation, initialization, and state management
+- Theme management
+- Notification handling
+- Hotkey registration and unregistration
+- Window visibility and tray state
+
+### Requirements Implemented
+- **Requirement 4.1**: Flutter cross-platform UI and platform native UI options
+- **Requirement 8.1**: WinUI 3 framework support for Windows native mode
