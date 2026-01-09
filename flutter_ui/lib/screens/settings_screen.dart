@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/settings_provider.dart';
+import 'performance_screen.dart';
 
 /// Screen for application settings
 class SettingsScreen extends StatelessWidget {
@@ -151,6 +152,68 @@ class SettingsScreen extends StatelessWidget {
                     },
                   ),
                 ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          
+          // Performance section
+          _buildSectionHeader(context, '性能'),
+          Card(
+            child: Column(
+              children: [
+                SwitchListTile(
+                  secondary: const Icon(Icons.speed),
+                  title: const Text('性能监控'),
+                  subtitle: const Text('启用应用性能监控和资源管理'),
+                  value: settings.enablePerformanceMonitoring,
+                  onChanged: settings.setEnablePerformanceMonitoring,
+                ),
+                if (settings.enablePerformanceMonitoring) ...[
+                  const Divider(height: 1),
+                  ListTile(
+                    leading: const Icon(Icons.analytics),
+                    title: const Text('性能监控面板'),
+                    subtitle: const Text('查看详细性能数据和资源配置'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const PerformanceScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  const Divider(height: 1),
+                  SwitchListTile(
+                    secondary: const Icon(Icons.auto_fix_high),
+                    title: const Text('自适应资源管理'),
+                    subtitle: const Text('根据系统负载自动调整处理优先级'),
+                    value: settings.resourceConfig.adaptiveManagement,
+                    onChanged: settings.setAdaptiveManagement,
+                  ),
+                  const Divider(height: 1),
+                  ListTile(
+                    leading: const Icon(Icons.history),
+                    title: const Text('历史记录保留'),
+                    trailing: DropdownButton<int>(
+                      value: settings.performanceHistoryHours,
+                      underline: const SizedBox(),
+                      items: const [
+                        DropdownMenuItem(value: 6, child: Text('6 小时')),
+                        DropdownMenuItem(value: 12, child: Text('12 小时')),
+                        DropdownMenuItem(value: 24, child: Text('24 小时')),
+                        DropdownMenuItem(value: 48, child: Text('48 小时')),
+                      ],
+                      onChanged: (value) {
+                        if (value != null) {
+                          settings.setPerformanceHistoryHours(value);
+                        }
+                      },
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

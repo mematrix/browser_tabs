@@ -4,6 +4,7 @@ pub mod traits;
 pub mod flutter;
 pub mod native;
 pub mod system_integration;
+pub mod performance_monitor;
 
 pub use system_integration::{
     CrossPlatformHotkeyManager,
@@ -22,6 +23,18 @@ pub use system_integration::{
     FnTrayEventHandler,
     ParsedKeyCombination,
     KeyModifier,
+};
+
+pub use performance_monitor::{
+    PerformanceMonitor,
+    PerformanceMetrics,
+    PerformanceSummary,
+    ResourceConfig,
+    ResourceLevel,
+    ProcessingPriority,
+    AppSettings,
+    SettingsManager,
+    ThemeMode,
 };
 
 pub use traits::*;

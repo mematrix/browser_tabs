@@ -1245,3 +1245,132 @@ A comprehensive Windows-native UI implementation using WinUI 3 framework with Wi
 - **Requirement 8.2**: Deep Windows integration (Jump Lists, Live Tiles)
 - **Requirement 8.3**: Windows-specific shortcuts and gestures
 - **Requirement 8.4**: Optimal startup performance and memory efficiency
+
+
+## Performance Monitoring and Resource Management (Task 10.7)
+
+### Rust Backend (`ui-manager/src/performance_monitor.rs`)
+
+A comprehensive performance monitoring and resource management module.
+
+#### Performance Monitor (`PerformanceMonitor`)
+- `start_monitoring()` / `stop_monitoring()` - Control monitoring lifecycle
+- `collect_metrics()` - Collect current performance metrics
+- `get_current_metrics()` - Get latest metrics without collecting new ones
+- `get_metrics_history()` - Get historical metrics data
+- `get_summary()` - Get aggregated performance summary
+- `record_response_time()` - Record response time samples for averaging
+- `record_error()` - Record error occurrences for tracking
+- `record_cache_hit()` / `record_cache_miss()` - Track cache statistics
+- `should_throttle()` - Check if a task should be throttled based on resource level
+- `get_recommended_delay()` - Get recommended delay for background tasks
+- `clear_history()` - Clear metrics history
+
+#### Performance Metrics (`PerformanceMetrics`)
+- `timestamp` - Timestamp of metrics collection
+- `memory_usage_bytes` - Current memory usage
+- `cpu_usage_percent` - Current CPU usage percentage
+- `active_connections` - Number of active browser connections
+- `managed_pages` - Number of pages being managed
+- `pending_ai_tasks` - Number of pending AI analysis tasks
+- `database_size_bytes` - Database size
+- `cache_hit_rate` - Cache hit rate (0-1)
+- `avg_response_time_ms` - Average response time
+- `recent_error_count` - Number of errors in the last minute
+
+#### Performance Summary (`PerformanceSummary`)
+- Current, average, and maximum memory/CPU usage
+- Average response time and total errors
+- Cache hit rate and resource level
+- Memory and CPU limits
+- Sample count for statistical accuracy
+
+#### Resource Management
+
+**ResourceConfig** - Configurable resource limits:
+- `max_memory_mb` - Maximum memory usage before throttling (default 512MB)
+- `max_cpu_percent` - Maximum CPU usage before throttling (default 50%)
+- `max_concurrent_ai_tasks` - Maximum concurrent AI tasks (default 4)
+- `max_database_size_mb` - Maximum database size (default 1024MB)
+- `adaptive_management` - Enable adaptive resource management (default true)
+- `background_interval_secs` - Background processing interval (default 30s)
+- `cache_size_mb` - Cache size limit (default 100MB)
+
+**ResourceLevel** - Adaptive resource levels:
+- `Low` - Low resource usage, can increase processing
+- `Normal` - Normal resource usage
+- `High` - High resource usage, should reduce processing
+- `Critical` - Critical resource usage, must reduce processing immediately
+
+**ProcessingPriority** - Task priority levels:
+- `Background` - Lowest priority for background tasks
+- `Normal` - Normal processing priority
+- `High` - High priority for user-initiated actions
+- `Critical` - Must complete immediately
+
+#### Settings Management (`SettingsManager`)
+- `load()` - Load settings from file
+- `save()` - Save settings to file
+- `get()` - Get current settings
+- `update()` - Update all settings
+- Individual update methods for each setting
+- `reset_to_defaults()` - Reset to default settings
+- Automatic directory creation and JSON serialization
+
+#### Application Settings (`AppSettings`)
+- `theme_mode` - Theme mode (Light, Dark, System)
+- `minimize_to_tray` - Minimize to tray when closing
+- `show_notifications` - Show system notifications
+- `enable_hotkeys` - Enable global hotkeys
+- `auto_refresh` - Auto refresh data
+- `auto_refresh_interval_secs` - Auto refresh interval
+- `default_browser` - Default browser for opening links
+- `resource_config` - Resource management configuration
+- `enable_performance_monitoring` - Enable performance monitoring
+- `performance_history_hours` - Performance history retention
+
+### Flutter UI
+
+#### Performance Metrics Model (`flutter_ui/lib/models/performance_metrics.dart`)
+- `PerformanceMetrics` - Dart model matching Rust struct
+- `PerformanceSummary` - Summary model with computed properties
+- `ResourceLevel` - Enum with display names
+- `ResourceConfig` - Configuration model with copyWith support
+
+#### Settings Provider Updates (`flutter_ui/lib/providers/settings_provider.dart`)
+- Added performance monitoring settings
+- Added resource configuration settings
+- Individual setters for all resource config options
+- Persistence via SharedPreferences
+
+#### Performance Screen (`flutter_ui/lib/screens/performance_screen.dart`)
+- Resource status card with level indicator
+- Memory and CPU usage cards with progress bars
+- Performance trend chart with memory and CPU lines
+- Resource configuration section with sliders
+- Recent activity log with timestamps
+- Auto-refresh every 5 seconds
+- Pull-to-refresh support
+
+#### Settings Screen Updates (`flutter_ui/lib/screens/settings_screen.dart`)
+- Performance monitoring toggle
+- Link to performance monitoring panel
+- Adaptive resource management toggle
+- Performance history retention dropdown
+
+### Unit Tests (14 tests)
+- Performance monitor creation and lifecycle
+- Response time recording and averaging
+- Error recording and counting
+- Cache statistics tracking
+- Resource configuration updates
+- Metrics history management
+- Throttling logic based on resource level
+- Recommended delay calculation
+- App settings defaults
+- Resource config defaults
+- Performance summary generation
+
+### Requirements Implemented
+- **Requirement 4.5**: Automatic adjustment of background processing priority based on system resources
+- **Requirement 5.5**: Performance monitoring for handling 100+ tabs within 500ms response time
