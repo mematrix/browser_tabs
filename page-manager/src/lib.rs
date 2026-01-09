@@ -15,11 +15,13 @@
 //! - History export and backup functionality
 //! - Remote tab control with operation history and undo
 //! - Content archiving with HTML extraction and media download
+//! - Page change detection and version management
 //!
 //! # Requirements Implemented
 //! - 1.5: Execute remote control operations (close, activate, create tabs)
 //! - 3.1: Extract page text, images, and structured content when user selects archive
 //! - 3.3: Download and locally store related media resources for archives with media files
+//! - 3.5: Detect page changes and provide update archive options
 //! - 6.1: Display bookmark association marks when tab URL matches existing bookmark
 //! - 6.2: Detect tab content changes and offer bookmark info update options
 //! - 6.3: Auto-inherit analyzed content summary and tags when adding tab as bookmark
@@ -37,6 +39,7 @@ pub mod search;
 pub mod history;
 pub mod remote_controller;
 pub mod content_archiver;
+pub mod change_detector;
 
 pub use unified_manager::*;
 pub use matcher::*;
@@ -45,6 +48,7 @@ pub use search::*;
 pub use history::*;
 pub use remote_controller::*;
 pub use content_archiver::*;
+pub use change_detector::*;
 
 // Re-export commonly used types
 pub use web_page_manager_core::*;

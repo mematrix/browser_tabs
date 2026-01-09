@@ -782,3 +782,77 @@ Unified management of tabs and bookmarks with data merging, association matching
 - Checksum calculation
 - Path normalization
 - Domain extraction
+
+
+## Page Change Detection and Update (Task 9.3)
+
+### Change Detector Module (`page-manager/src/change_detector.rs`)
+
+#### Page Content Change Monitoring System (Requirement 3.5)
+- `ChangeDetector` - Main struct for detecting changes in archived web pages
+- `check_for_changes()` - Compares archived content with new content and returns detection result
+- `calculate_similarity()` - Jaccard similarity algorithm for text comparison (word-based)
+- `classify_change()` - Classifies changes based on similarity threshold and content analysis
+- `should_check()` - Checks if a URL should be checked based on minimum interval
+- `check_batch()` - Batch checking for multiple archives with content fetcher callback
+
+#### Change Classification (`ChangeType`)
+- `NoChange` - No significant change detected
+- `Minor` - Minor changes (typos, formatting) - similarity >= 0.7
+- `Moderate` - Moderate changes (some content updated) - similarity >= 0.4
+- `Major` - Major changes (significant content rewrite) - similarity < 0.4
+- `StructuralChange` - Page structure changed significantly (title changed)
+- `PageUnavailable` - Page no longer accessible
+- `Redirected { new_url }` - Page redirects to different URL
+
+#### Incremental Update and Version Management
+- `ArchiveVersion` - Version information (version number, archive ID, created_at, checksum, size, change type)
+- `add_version()` - Records new version with checksum and change type
+- `get_version_history()` - Retrieves version history for a page
+- `get_latest_version()` - Gets the latest version for a page
+- `compare_versions()` - Line-by-line diff comparison between two versions
+- `VersionComparison` - Comparison result (added lines, removed lines, unchanged lines, change percentage)
+- Configurable max versions per page with automatic cleanup
+
+#### Update Notification and User Choice Mechanism
+- `ChangeNotification` - Notification about detected changes (id, archive_id, url, title, change_type, summary, created_at, is_read, user_action)
+- `UpdateOption` - User choices (UpdateArchive, KeepCurrent, CreateNewVersion, DeleteArchive)
+- `create_notification()` - Creates notification when changes are detected
+- `get_notifications()` / `get_unread_notifications()` - Query notifications
+- `mark_notification_read()` - Mark notification as read
+- `apply_user_action()` - Apply user's chosen action for a notification
+- `clear_notifications()` / `clear_read_notifications()` - Clear notifications
+
+#### Configuration (`ChangeDetectorConfig`)
+- `min_check_interval_hours` - Minimum time between checks for the same URL (default 24)
+- `change_threshold` - Similarity threshold below which content is considered changed (default 0.85)
+- `max_versions_per_page` - Maximum number of versions to keep per page (default 5)
+- `auto_check_enabled` - Whether to automatically check for changes (default true)
+- `batch_size` - Batch size for checking multiple pages (default 10)
+
+#### Data Structures
+- `ChangeDetector` - Main detector struct with config, repository, check times, notifications, and version history
+- `ChangeDetectorConfig` - Configuration options
+- `ChangeDetectionResult` - Result of change detection (archive_id, url, change_type, similarity_score, change_summary, new_content, checked_at, check_duration_ms)
+- `PageChangeContent` - Content from a changed page (html, text, title, checksum, fetched_at)
+- `ChangeNotification` - Notification about detected changes
+- `ArchiveVersion` - Version information for an archived page
+- `VersionComparison` - Comparison result between two versions
+- `ChangeDetectorStats` - Statistics (total_notifications, unread_notifications, urls_tracked, total_versions, pages_with_versions)
+
+#### Statistics and Management
+- `get_stats()` - Get statistics about change detection activity
+- `record_check()` - Record that a URL was checked
+- `calculate_checksum()` - Calculate FNV-1a checksum for content
+- `generate_change_summary()` - Generate human-readable summary of changes
+
+#### Unit Tests (15 tests)
+- Similarity calculation (identical, completely different, partial overlap, empty strings)
+- Change classification (no change, minor, moderate, major)
+- Version comparison
+- Checksum calculation
+- Change summary generation
+- Should check interval logic
+- Notification management
+- Version history management
+- Statistics tracking
