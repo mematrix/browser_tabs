@@ -21,6 +21,7 @@ pub mod privacy_filter;
 pub mod tab_monitor;
 pub mod tab_extractor;
 pub mod bookmark_import;
+pub mod bookmark_content_analyzer;
 
 pub use traits::*;
 pub use cdp::{ChromeConnector, EdgeConnector, CdpTarget, CdpVersion};
@@ -31,6 +32,11 @@ pub use tab_extractor::{TabExtractor, ExtendedTabInfo, TabCategory, TabStats};
 pub use bookmark_import::{
     BookmarkImporter, BookmarkValidator, BookmarkSource, ImportProgress, ImportStatus,
     BookmarkValidationResult, ValidationReport, ChromeBookmarks, ChromeBookmarkNode,
+};
+pub use bookmark_content_analyzer::{
+    BookmarkContentAnalyzer, BookmarkContentAnalyzerConfig, BookmarkContentResult,
+    BatchAnalysisResult, BatchBookmarkProcessor, BatchAnalysisConfig, BatchBookmarkAnalysis,
+    MergeSuggestion, MergedBookmarkMetadata,
 };
 
 use web_page_manager_core::*;
@@ -645,6 +651,59 @@ impl BrowserConnectorManager {
     pub async fn validate_bookmarks(&self, bookmarks: &[BookmarkInfo]) -> ValidationReport {
         let validator = BookmarkValidator::new();
         validator.validate_batch(bookmarks).await
+    }
+
+    // ============================================================
+    // Bookmark Content Analysis Methods
+    // ============================================================
+
+    /// Create a new bookmark content analyzer for fetching and analyzing bookmark content
+    /// 
+    /// This implements Requirements 2.2 and 2.3:
+    /// - Validate bookmark accessibility
+    /// - Extract page content and metadata
+    pub fn create_bookmark_content_analyzer(&self) -> BookmarkContentAnalyzer {
+        BookmarkContentAnalyzer::new()
+    }
+
+    /// Create a bookmark content analyzer with custom configuration
+    pub fn create_bookmark_content_analyzer_with_config(
+        &self,
+        config: BookmarkContentAnalyzerConfig,
+    ) -> BookmarkContentAnalyzer {
+        BookmarkContentAnalyzer::with_config(config)
+    }
+
+    /// Fetch content for a single bookmark
+    /// 
+    /// This method fetches the web page content, validates accessibility,
+    /// and extracts metadata from the page.
+    /// 
+    /// Implements Requirements 2.2 and 2.3
+    pub async fn fetch_bookmark_content(&self, bookmark: &BookmarkInfo) -> BookmarkContentResult {
+        let analyzer = BookmarkContentAnalyzer::new();
+        analyzer.fetch_bookmark_content(bookmark).await
+    }
+
+    /// Fetch content for multiple bookmarks in batch
+    /// 
+    /// This method processes bookmarks concurrently for efficient batch processing.
+    /// 
+    /// Implements Requirements 2.2 and 2.3
+    pub async fn fetch_bookmark_content_batch(&self, bookmarks: &[BookmarkInfo]) -> BatchAnalysisResult {
+        let analyzer = BookmarkContentAnalyzer::new();
+        analyzer.fetch_batch(bookmarks).await
+    }
+
+    /// Validate bookmark accessibility without fetching full content
+    /// 
+    /// This is a lightweight check that only performs a HEAD request
+    /// to verify the URL is accessible.
+    /// 
+    /// Implements Requirement 2.2
+    pub async fn validate_bookmark_accessibility(&self, url: &str) -> (AccessibilityStatus, Option<String>) {
+        let analyzer = BookmarkContentAnalyzer::new();
+        analyzer.validate_accessibility(url).await
     }
 }
 

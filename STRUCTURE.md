@@ -142,6 +142,108 @@
 - `import_all_bookmarks()` - convenience method for full import
 - `validate_bookmarks()` - convenience method for batch validation
 
+## Bookmark Content Analyzer (Task 5.1)
+
+### Bookmark Content Analyzer Module (`bookmark_content_analyzer.rs`)
+
+#### Web Page Content Fetching Functionality
+- `fetch_bookmark_content()` - Fetches full page content for a single bookmark
+- `fetch_batch()` - Batch processing with concurrent requests
+- Configurable timeouts, max content size, and concurrent request limits
+- `BookmarkContentAnalyzerConfig` - Configuration options for request timeout, max concurrent requests, max content size, user agent, redirect handling
+
+#### Bookmark Accessibility Verification Mechanism
+- `validate_accessibility()` - Lightweight HEAD request to check URL accessibility
+- Proper handling of HTTP status codes (200-299, 301/302/307/308, 403, 404)
+- Timeout and network error detection
+- Redirect URL tracking
+
+#### Page Metadata Extraction Functionality
+- `extract_metadata()` - Extracts comprehensive metadata from HTML content
+- Supports: title, description, author, published/modified dates, language, og:image, canonical URL, site name
+- HTML entity decoding for common entities (&amp;, &lt;, &gt;, &quot;, &nbsp;, etc.)
+- Text content extraction (strips scripts and styles)
+- Image and link extraction from HTML
+- Keyword extraction from meta tags
+
+#### Data Structures
+- `BookmarkContentAnalyzer` - Main analyzer struct
+- `BookmarkContentAnalyzerConfig` - Configuration options
+- `BookmarkContentResult` - Result for single bookmark analysis (status, content, metadata, response time)
+- `BatchAnalysisResult` - Result for batch processing (total, successful, failed counts, duration)
+
+#### Integration with BrowserConnectorManager
+- `create_bookmark_content_analyzer()` - Factory method for creating analyzers
+- `create_bookmark_content_analyzer_with_config()` - Factory method with custom configuration
+- `fetch_bookmark_content()` - Convenience method for single bookmark content fetching
+- `fetch_bookmark_content_batch()` - Convenience method for batch content fetching
+- `validate_bookmark_accessibility()` - Convenience method for accessibility validation
+
+## Batch Bookmark Analysis and Deduplication (Task 5.2)
+
+### Batch Bookmark Processor (`bookmark_content_analyzer.rs`)
+
+#### New Components
+
+**BatchAnalysisConfig** - Configuration for batch bookmark analysis:
+- `similarity_threshold` - Threshold for detecting duplicates (default 0.8)
+- `detect_exact_duplicates` - Enable exact URL duplicate detection
+- `detect_similar_content` - Enable similar content duplicate detection
+- `detect_redirect_chains` - Enable redirect chain duplicate detection
+- `max_concurrent_fetches` - Maximum concurrent content fetches
+
+**BatchBookmarkProcessor** - Main processor for batch analysis:
+- `analyze_batch()` - Analyzes batches of bookmarks concurrently
+- `detect_exact_url_duplicates()` - Detects bookmarks with identical normalized URLs
+- `detect_redirect_duplicates()` - Detects bookmarks that redirect to the same final URL
+- `detect_similar_content_duplicates()` - Detects bookmarks with similar content using text similarity
+- `merge_overlapping_groups()` - Merges overlapping duplicate groups
+- `generate_merge_suggestions()` - Generates merge suggestions for duplicate groups
+
+**BatchBookmarkAnalysis** - Result structure containing:
+- Total and unique bookmark counts
+- Duplicate groups with type and similarity scores
+- Merge suggestions with confidence scores
+- Individual bookmark analysis results
+- Timing information (started_at, completed_at, total_duration_ms)
+
+**MergeSuggestion** - Suggestion for merging duplicates:
+- `keep_bookmark` - Recommended bookmark to keep
+- `remove_bookmarks` - Bookmarks recommended to remove
+- `reason` - Explanation for the suggestion
+- `confidence` - Confidence score (0.0 - 1.0)
+- `merged_metadata` - Combined metadata from all bookmarks
+
+**MergedBookmarkMetadata** - Merged metadata from multiple bookmarks:
+- `best_title` - Best title from all bookmarks (longest non-empty)
+- `combined_keywords` - Combined keywords from all bookmarks
+- `suggested_folder_path` - Best folder path suggestion (deepest)
+- `combined_description` - Combined description
+
+#### Key Algorithms
+
+**URL Normalization** (`normalize_url`):
+- Removes tracking parameters (utm_*, ref=, source=, fbclid=, gclid=)
+- Removes www. prefix
+- Removes trailing slashes
+- Removes URL fragments
+- Case-insensitive comparison
+
+**String Similarity** (`string_similarity`):
+- Levenshtein distance-based similarity ratio
+- Case-insensitive comparison
+
+**Jaccard Similarity** (`jaccard_similarity`):
+- Word-based Jaccard index for text content comparison
+- Tokenization with filtering of short words
+
+**Content Similarity** (`calculate_content_similarity`):
+- Weighted combination of title similarity (0.3), text similarity (0.4), keywords overlap (0.2), description similarity (0.1)
+
+**Best Bookmark Selection** (`select_best_bookmark`):
+- Scores bookmarks based on title length, favicon presence, access history, folder depth, and age
+- Selects bookmark with highest score
+
 ## AI Content Processor (Task 4.1)
 
 ### Basic AI Content Processing Implementation
