@@ -697,3 +697,88 @@ Unified management of tabs and bookmarks with data merging, association matching
 - **8.3**: Session state and login information preservation (best-effort)
 - **8.4**: Fallback solutions (URL export/import) when API limitations prevent direct migration
 - **8.5**: Operation verification and rollback capability
+
+
+## Content Archiver (Task 9.1)
+
+### Content Archiver Module (`page-manager/src/content_archiver.rs`)
+
+#### HTML Content Extraction and Cleaning (Requirement 3.1)
+- `extract_content()` - Main method to extract all content from HTML
+- `clean_html()` - Removes scripts, styles, noscript tags, and HTML comments
+- `remove_tag_with_content()` - Removes specific HTML tags and their content
+- `remove_html_comments()` - Removes HTML comments
+- `remove_event_handlers()` - Removes inline event handlers (onclick, onload, etc.)
+- `normalize_whitespace()` - Normalizes whitespace in HTML
+- `extract_text()` - Extracts plain text from HTML with entity decoding
+- `extract_title()` - Extracts page title from `<title>` or `<h1>` tags
+- `extract_image_urls()` - Finds all image URLs including srcset and background images
+- `extract_other_media_urls()` - Extracts video and audio URLs
+- `extract_links()` - Separates internal and external links
+- `extract_attribute()` - Extracts attribute values from HTML tags
+
+#### Media File Download and Local Storage (Requirement 3.3)
+- `download_media_files()` - Downloads media files with size limits and concurrent download management
+- `download_single_media()` - Downloads individual files with checksum generation
+- `generate_media_filename()` - Creates unique filenames to avoid collisions
+- `guess_mime_type()` - Detects MIME type from URL extension
+- Configurable storage path, file size limits, and concurrent download limits via `ContentArchiverConfig`
+- `MediaFileInfo` - Information about downloaded media (original URL, local path, file size, MIME type, checksum)
+- `MediaDownloadError` - Error information for failed downloads
+
+#### Archive Format and Storage
+- `archive_page()` - Main archiving method that extracts content, downloads media, and stores the archive
+- `ContentArchive` integration with `ArchiveRepository` for persistence
+- Checksum generation using FNV-1a hash for content integrity
+- Compression support (placeholder for future implementation with flate2)
+- Full-text searchable content storage via FTS5
+
+#### URL Resolution and Processing
+- `resolve_url()` - Resolves relative URLs to absolute URLs
+- `parse_url()` - Parses URL into (protocol, host, path) components
+- `normalize_path()` - Normalizes URL paths (resolves . and ..)
+- `extract_domain()` - Extracts domain from URL
+- `is_supported_image()` - Checks if URL points to a supported image format
+
+#### Content Analysis
+- `count_words()` - Counts words in text
+- `estimate_reading_time()` - Estimates reading time based on word count (225 words/minute)
+- `calculate_checksum()` - Calculates FNV-1a checksum for content
+
+#### Archive Management
+- `get_archive()` - Get archive by ID
+- `get_archive_by_page()` - Get archive by page ID
+- `search_archives()` - Search archives using full-text search
+- `delete_archive()` - Delete archive and associated media files
+- `get_total_archive_size()` - Get total size of all archives
+
+#### Configuration (`ContentArchiverConfig`)
+- `media_storage_path` - Base directory for storing media files
+- `max_media_file_size` - Maximum size for a single media file (default 10MB)
+- `max_total_media_size` - Maximum total size for all media files per archive (default 100MB)
+- `download_timeout_secs` - Timeout for downloading media files (default 30s)
+- `enable_compression` - Whether to compress archived content
+- `supported_media_extensions` - Supported media file extensions
+- `max_concurrent_downloads` - Maximum concurrent downloads (default 5)
+
+#### Data Structures
+- `ContentArchiver` - Main archiver struct
+- `ContentArchiverConfig` - Configuration options
+- `ArchiveResult` - Result of archiving (archive, downloaded media, failed media, total size, duration)
+- `ExtractedContent` - Extracted content (HTML, text, title, image URLs, media URLs, links, reading time, word count)
+- `MediaFileInfo` - Downloaded media file information
+- `MediaDownloadError` - Failed download information
+
+#### Unit Tests (22 tests)
+- Title extraction from `<title>` and `<h1>` tags
+- Text extraction with HTML entity decoding
+- HTML cleaning (script/style removal)
+- Image URL extraction
+- URL resolution (absolute, relative, protocol-relative)
+- Link extraction (internal/external)
+- Word count and reading time estimation
+- Attribute extraction
+- MIME type detection
+- Checksum calculation
+- Path normalization
+- Domain extraction
