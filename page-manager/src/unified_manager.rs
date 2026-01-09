@@ -572,6 +572,97 @@ impl PageUnifiedManager {
 
         stats
     }
+
+    // =========================================================================
+    // Search Methods (In-Memory)
+    // =========================================================================
+
+    /// Search unified pages by query string (in-memory search)
+    ///
+    /// This performs a simple text search across titles, URLs, and keywords
+    /// of the cached unified pages. For full-text search with database
+    /// support, use UnifiedSearchManager.
+    ///
+    /// Implements Requirement 6.5: Unified search across tabs and bookmarks
+    pub async fn search_pages(&self, query: &str) -> Vec<UnifiedPageInfo> {
+        let pages = self.unified_pages.read().await;
+        let query_lower = query.to_lowercase();
+
+        pages
+            .iter()
+            .filter(|page| {
+                page.title.to_lowercase().contains(&query_lower)
+                    || page.url.to_lowercase().contains(&query_lower)
+                    || page.keywords.iter().any(|k| k.to_lowercase().contains(&query_lower))
+                    || page.category.as_ref().map(|c| c.to_lowercase().contains(&query_lower)).unwrap_or(false)
+            })
+            .cloned()
+            .collect()
+    }
+
+    /// Search unified pages with filtering options (in-memory search)
+    ///
+    /// Implements Requirement 6.5: Unified search with filtering
+    pub async fn search_pages_filtered(
+        &self,
+        query: &str,
+        browser_filter: Option<BrowserType>,
+        include_tabs: bool,
+        include_bookmarks: bool,
+    ) -> Vec<UnifiedPageInfo> {
+        let pages = self.unified_pages.read().await;
+        let query_lower = query.to_lowercase();
+
+        pages
+            .iter()
+            .filter(|page| {
+                // Text match
+                let text_match = page.title.to_lowercase().contains(&query_lower)
+                    || page.url.to_lowercase().contains(&query_lower)
+                    || page.keywords.iter().any(|k| k.to_lowercase().contains(&query_lower));
+
+                if !text_match {
+                    return false;
+                }
+
+                // Browser filter
+                if let Some(browser) = browser_filter {
+                    let page_browser = match &page.source_type {
+                        PageSourceType::ActiveTab { browser: b, .. } => Some(*b),
+                        PageSourceType::Bookmark { browser: b, .. } => Some(*b),
+                        _ => page.browser_info.as_ref().map(|bi| bi.browser_type),
+                    };
+                    if page_browser != Some(browser) {
+                        return false;
+                    }
+                }
+
+                // Source type filter
+                let has_tab = page.tab_info.is_some();
+                let has_bookmark = page.bookmark_info.is_some();
+
+                if !include_tabs && has_tab && !has_bookmark {
+                    return false;
+                }
+                if !include_bookmarks && has_bookmark && !has_tab {
+                    return false;
+                }
+
+                true
+            })
+            .cloned()
+            .collect()
+    }
+
+    /// Get cached tabs for external search managers
+    pub async fn get_cached_tabs(&self) -> Vec<TabInfo> {
+        self.tabs.read().await.clone()
+    }
+
+    /// Get cached bookmarks for external search managers
+    pub async fn get_cached_bookmarks(&self) -> Vec<BookmarkInfo> {
+        self.bookmarks.read().await.clone()
+    }
 }
 
 impl Default for PageUnifiedManager {
@@ -693,5 +784,63 @@ mod tests {
         assert_eq!(stats.matched_pages, 1); // example.com has both
         assert_eq!(stats.active_tab_pages, 1); // rust-lang.org
         assert_eq!(stats.bookmark_only_pages, 1); // python.org
+    }
+
+    #[tokio::test]
+    async fn test_search_pages() {
+        let manager = PageUnifiedManager::new();
+
+        let tabs = vec![
+            create_test_tab("https://rust-lang.org", "Rust Programming Language"),
+            create_test_tab("https://python.org", "Python Programming"),
+        ];
+
+        let bookmarks = vec![
+            create_test_bookmark("https://golang.org", "Go Programming Language"),
+        ];
+
+        manager.update_all(tabs, bookmarks).await;
+
+        // Search for "rust"
+        let results = manager.search_pages("rust").await;
+        assert_eq!(results.len(), 1);
+        assert!(results[0].url.contains("rust"));
+
+        // Search for "programming" - should find all
+        let results = manager.search_pages("programming").await;
+        assert_eq!(results.len(), 3);
+
+        // Search for non-existent term
+        let results = manager.search_pages("javascript").await;
+        assert!(results.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_search_pages_filtered() {
+        let manager = PageUnifiedManager::new();
+
+        let tabs = vec![
+            create_test_tab("https://rust-lang.org", "Rust Programming"),
+        ];
+
+        let bookmarks = vec![
+            create_test_bookmark("https://python.org", "Python Programming"),
+        ];
+
+        manager.update_all(tabs, bookmarks).await;
+
+        // Search with tabs only
+        let results = manager.search_pages_filtered("programming", None, true, false).await;
+        assert_eq!(results.len(), 1);
+        assert!(results[0].url.contains("rust"));
+
+        // Search with bookmarks only
+        let results = manager.search_pages_filtered("programming", None, false, true).await;
+        assert_eq!(results.len(), 1);
+        assert!(results[0].url.contains("python"));
+
+        // Search with both
+        let results = manager.search_pages_filtered("programming", None, true, true).await;
+        assert_eq!(results.len(), 2);
     }
 }

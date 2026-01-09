@@ -422,3 +422,48 @@ Unified management of tabs and bookmarks with data merging, association matching
 - Match confidence ordering (exact > domain)
 - Batch merge URL preservation
 - Content change detection accuracy
+
+
+## Unified Search Functionality (Task 6.4)
+
+### Search Module (`search.rs`)
+
+#### Cross-Data-Source Unified Search Interface (`UnifiedSearchManager`)
+- Searches across active tabs, bookmarks, unified pages, tab history, and archived content
+- Uses FTS5 full-text search for database queries
+- In-memory search for cached tabs and bookmarks
+- `search()` - Main search entry point with options
+- `update_tabs()` / `update_bookmarks()` - Update cached data for in-memory search
+- Relevance scoring based on title match, URL match, and keyword match
+- Deduplication by URL with priority for higher relevance and source type
+
+#### Search Result Sorting and Filtering (`SearchFilter`, `SearchSortOrder`, `SearchOptions`)
+- `SearchFilter` - Filter by source type (tabs, bookmarks, history, archives), browser type, date range, keywords
+- `SearchSortOrder` - Sort by relevance, recency (newest/oldest first), or title (asc/desc)
+- `SearchOptions` - Pagination (limit, offset), sort order, filter, snippet inclusion
+- `SearchResultItem` - Unified result item with id, url, title, source type, relevance score, snippet, keywords
+- `SearchResultSource` - Enum for result sources (ActiveTab, Bookmark, History, Archive, UnifiedPage)
+- `SearchResults` - Results container with total count, items, search time, and grouping by source
+
+#### Search History and Suggestions (`SearchHistoryEntry`, `SearchSuggestion`)
+- `record_search()` - Records search queries with timestamps and result counts
+- `get_search_history()` - Retrieves recent search history
+- `clear_search_history()` - Clears search history
+- `get_suggestions()` - Provides suggestions based on search history, page titles, and keywords
+- `SuggestionType` - Enum for suggestion sources (History, Title, Keyword, Url)
+- Deduplication and ranking of suggestions by score
+
+#### In-Memory Search Methods in `PageUnifiedManager`
+- `search_pages()` - Simple text search across cached unified pages (title, URL, keywords, category)
+- `search_pages_filtered()` - Search with browser type and source type filters
+- `get_cached_tabs()` / `get_cached_bookmarks()` - Access cached data for external search managers
+
+#### Key Features
+- Unified search across all data sources (Requirement 6.5)
+- FTS5 full-text search integration for database queries
+- Configurable filtering by source type, browser, date range, and keywords
+- Multiple sort options (relevance, recency, title)
+- Pagination support for large result sets
+- Search history tracking with deduplication
+- Auto-complete suggestions from multiple sources
+- Result deduplication with source priority (ActiveTab > Bookmark > UnifiedPage > History > Archive)
