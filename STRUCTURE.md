@@ -607,3 +607,93 @@ Unified management of tabs and bookmarks with data merging, association matching
 
 #### Design Properties
 - Property 4: Remote control operation atomicity - Operations either fully succeed or fully fail, maintaining original state
+
+
+## Cross-Browser Tab Migration (Task 8.3)
+
+### Remote Controller Module Enhancements (`page-manager/src/remote_controller.rs`)
+
+#### New Types for Cross-Browser Migration
+
+**MigrationType** - Enum for migration operation types:
+- `Full` - Full migration with session state preservation attempt
+- `UrlOnly` - URL-only migration (fallback when session state cannot be preserved)
+- `Export` - Export URLs for manual import (fallback when direct migration fails)
+
+**MigrationStatus** - Status tracking for migrations:
+- `Success` - Migration completed successfully
+- `SuccessWithFallback { fallback_type }` - Migration completed with fallback method
+- `Failed(String)` - Migration failed with error message
+- `Pending` - Migration is pending
+- `RolledBack` - Migration was rolled back
+
+**SessionState** - Captures session state for migration (Requirement 8.3):
+- `url` - URL of the tab
+- `title` - Title of the tab
+- `scroll_position` - Scroll position (if available)
+- `form_data` - Form data (if available and safe to transfer)
+- `cookies` - Cookies associated with the page (domain-specific)
+- `local_storage` / `session_storage` - Storage data (if available)
+- `captured_at` - Timestamp when state was captured
+- `has_preserved_data()` - Check if session state has preserved data beyond URL/title
+
+**CookieInfo** - Cookie information structure for session preservation
+
+**MigrationRecord** - Complete record of a migration operation:
+- Source/target browser, tab IDs, URL, title
+- Migration type and status
+- Session state and preservation status
+- Timestamps (initiated_at, completed_at)
+- Rollback capability flag
+- Error message if failed
+
+**MigrationResult** - Result wrapper with:
+- Migration record
+- Fallback usage flag
+- Fallback data (if export fallback was used)
+
+**FallbackData** - Export data for when direct migration fails (Requirement 8.4):
+- `fallback_type` - Type of fallback (UrlExport, HtmlBookmarkExport, JsonExport, ClipboardCopy)
+- `urls` - List of URL export entries
+- `format` - Export format (PlainText, Html, Json)
+- `export_content` - Generated export content
+- `instructions` - User instructions for manual import
+
+**MigrationConfig** - Configuration options for migration:
+- `preserve_session_state` - Whether to attempt session state preservation (default true)
+- `close_source_tab` - Whether to close source tab after successful migration (default true)
+- `activate_target_tab` - Whether to activate new tab in target browser (default true)
+- `timeout_ms` - Timeout for migration operations (default 10000ms)
+- `auto_fallback` - Whether to automatically use fallback on failure (default true)
+- `preferred_fallback` - Preferred fallback type (default UrlExport)
+
+#### New Methods for Cross-Browser Migration
+
+**migrate_tab()** - Main migration method (Requirements 8.2, 8.3, 8.4):
+1. Captures session state from source tab
+2. Creates tab in target browser with the same URL
+3. Optionally closes source tab
+4. Provides rollback capability
+5. Falls back to alternative methods on failure
+
+**migrate_tabs_batch()** - Batch migration for multiple tabs
+
+**generate_fallback_export()** - Creates export data in PlainText, JSON, or HTML bookmark format (Requirement 8.4)
+
+**rollback_migration()** - Rolls back a migration by closing target tab and reopening in source browser (Requirement 8.5)
+
+**verify_migration()** - Verifies a migration was successful by checking if target tab exists (Requirement 8.5)
+
+**get_migration_history()** / **get_recent_migrations()** / **get_rollbackable_migrations()** - Migration history management
+
+**clear_migration_history()** - Clear migration history
+
+#### Enhanced Statistics
+- `cross_browser_migrations` - Number of cross-browser migrations performed
+- `fallback_operations` - Number of fallback operations used
+
+#### Requirements Covered
+- **8.2**: Cross-browser tab migration with safe movement
+- **8.3**: Session state and login information preservation (best-effort)
+- **8.4**: Fallback solutions (URL export/import) when API limitations prevent direct migration
+- **8.5**: Operation verification and rollback capability
