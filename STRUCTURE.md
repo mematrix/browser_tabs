@@ -515,3 +515,45 @@ Unified management of tabs and bookmarks with data merging, association matching
 - `HistoryManagerStats` - Statistics about the history manager
 - Integration with `TabMonitor` for event subscription
 - Uses core types: `HistoryEntry`, `HistoryFilter`, `RetentionPolicy`, `SessionInfo`
+
+
+## Tab Restoration and Cleanup (Task 7.3)
+
+### History Module Enhancements (`page-manager/src/history.rs`)
+
+#### Tab Restoration (Requirement 7.4)
+- `restore_tab()` - Restores a history tab in a specified browser using the BrowserConnector trait
+- `restore_tabs_batch()` - Batch restoration of multiple tabs with individual result tracking
+- `get_restore_url()` - Get URL for manual restoration when automatic fails
+- `get_restore_urls()` - Get URLs for multiple history entries
+- `RestoreResult` - Result structure tracking restoration outcomes (history_id, new_tab_id, target_browser, success, error, restored_at)
+
+#### Automatic Cleanup (Requirement 7.5)
+- `run_auto_cleanup()` - Runs cleanup using the default retention policy
+- `cleanup_with_policy()` - Runs cleanup with a custom retention policy
+- `needs_cleanup()` - Checks if cleanup is needed based on current state
+- `preview_cleanup()` / `preview_cleanup_with_policy()` - Preview what would be deleted without actually deleting
+- `CleanupResult` - Detailed statistics (deleted_by_age, deleted_by_limit, preserved_important, remaining_entries, cleaned_at)
+- Enhanced `TabHistoryManagerConfig` with auto-cleanup settings (auto_cleanup_on_startup, auto_cleanup_interval_hours)
+- Importance-based preservation during cleanup (entries with content summaries and keywords are prioritized)
+
+#### Export and Backup
+- `export()` - Export history in JSON, CSV, or HTML formats
+- `export_filtered()` - Export filtered history entries
+- `import()` - Import history from JSON data
+- `save_to_file()` - Save history to a file
+- `load_from_file()` - Load history from a file
+- `ExportFormat` - Enum for export formats (Json, Csv, Html)
+- `ExportedHistory` - Exported data structure with metadata and entries
+- `ExportMetadata` - Export metadata (exported_at, app_version, entry_count, date_range, format)
+
+#### Data Structures
+- `RestoreResult` - Result of tab restoration operation
+- `CleanupResult` - Statistics about cleanup operation
+- `ExportFormat` - Export format enum
+- `ExportedHistory` - Exported history data structure
+- `ExportMetadata` - Metadata for exported history
+
+#### Enhanced Statistics
+- `session_cleanups` - Number of entries cleaned up in current session
+- `last_cleanup` - Timestamp of last cleanup operation

@@ -4,19 +4,26 @@
 //! - Automatic saving of closed tab information
 //! - History record query and filtering
 //! - Rich history information with content summaries and tags
+//! - Tab restoration to specified browsers
+//! - Automatic cleanup strategies based on time and importance
+//! - History export and backup functionality
 //!
 //! # Requirements Implemented
 //! - 7.1: Auto-save closed tab complete information to history
 //! - 7.2: Preserve page title, URL, close time, and analyzed content summary
 //! - 7.3: Display richer information than browser history including content preview and tags
+//! - 7.4: Restore history tabs in specified browser
+//! - 7.5: Provide automatic cleanup strategy based on time and importance
 
 use web_page_manager_core::*;
-use browser_connector::{TabEvent, TabMonitor};
+use browser_connector::{TabEvent, TabMonitor, BrowserConnector};
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::path::Path;
 use tokio::sync::RwLock;
 use chrono::{DateTime, Duration, Utc};
-use tracing::{debug, info};
+use tracing::{debug, info, warn};
+use serde::{Deserialize, Serialize};
 
 /// Configuration for the Tab History Manager
 #[derive(Debug, Clone)]
@@ -31,6 +38,10 @@ pub struct TabHistoryManagerConfig {
     pub save_internal_pages: bool,
     /// Default retention policy for automatic cleanup
     pub default_retention_policy: RetentionPolicy,
+    /// Whether to run automatic cleanup on startup
+    pub auto_cleanup_on_startup: bool,
+    /// Interval for automatic cleanup in hours (0 = disabled)
+    pub auto_cleanup_interval_hours: u32,
 }
 
 impl Default for TabHistoryManagerConfig {
@@ -41,6 +52,8 @@ impl Default for TabHistoryManagerConfig {
             min_tab_lifetime_secs: 5,
             save_internal_pages: false,
             default_retention_policy: RetentionPolicy::default(),
+            auto_cleanup_on_startup: true,
+            auto_cleanup_interval_hours: 24,
         }
     }
 }
@@ -60,6 +73,77 @@ pub struct HistoryManagerStats {
     pub oldest_entry: Option<DateTime<Utc>>,
     /// Newest entry timestamp
     pub newest_entry: Option<DateTime<Utc>>,
+    /// Number of entries cleaned up in current session
+    pub session_cleanups: usize,
+    /// Last cleanup timestamp
+    pub last_cleanup: Option<DateTime<Utc>>,
+}
+
+/// Result of a tab restoration operation
+#[derive(Debug, Clone)]
+pub struct RestoreResult {
+    /// The history entry that was restored
+    pub history_id: HistoryId,
+    /// The new tab ID in the target browser
+    pub new_tab_id: Option<TabId>,
+    /// The browser where the tab was restored
+    pub target_browser: BrowserType,
+    /// Whether the restoration was successful
+    pub success: bool,
+    /// Error message if restoration failed
+    pub error: Option<String>,
+    /// Timestamp of the restoration attempt
+    pub restored_at: DateTime<Utc>,
+}
+
+/// Cleanup result containing statistics about the cleanup operation
+#[derive(Debug, Clone)]
+pub struct CleanupResult {
+    /// Number of entries deleted due to age
+    pub deleted_by_age: usize,
+    /// Number of entries deleted due to max entries limit
+    pub deleted_by_limit: usize,
+    /// Number of important entries preserved
+    pub preserved_important: usize,
+    /// Total entries remaining after cleanup
+    pub remaining_entries: usize,
+    /// Timestamp of the cleanup
+    pub cleaned_at: DateTime<Utc>,
+}
+
+/// Export format for history data
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ExportFormat {
+    /// JSON format (default)
+    Json,
+    /// CSV format for spreadsheet compatibility
+    Csv,
+    /// HTML format for browser viewing
+    Html,
+}
+
+/// Exported history data structure
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExportedHistory {
+    /// Export metadata
+    pub metadata: ExportMetadata,
+    /// The history entries
+    pub entries: Vec<HistoryEntry>,
+}
+
+/// Metadata for exported history
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExportMetadata {
+    /// Export timestamp
+    pub exported_at: DateTime<Utc>,
+    /// Application version
+    pub app_version: String,
+    /// Total number of entries
+    pub entry_count: usize,
+    /// Date range of entries
+    pub date_range: Option<(DateTime<Utc>, DateTime<Utc>)>,
+    /// Export format used
+    pub format: String,
 }
 
 /// Tab History Manager
@@ -655,6 +739,521 @@ impl TabHistoryManager {
         domain_counts.truncate(count);
         domain_counts
     }
+
+    // =========================================================================
+    // Tab Restoration (Requirement 7.4)
+    // =========================================================================
+
+    /// Restore a history tab in the specified browser
+    ///
+    /// This method reopens a previously closed tab in the target browser.
+    /// If the target browser is not specified, it uses the original browser.
+    ///
+    /// Implements Requirement 7.4: Restore history tabs in specified browser
+    pub async fn restore_tab<C: BrowserConnector>(
+        &self,
+        history_id: &HistoryId,
+        connector: &C,
+    ) -> Result<RestoreResult> {
+        // Get the history entry
+        let entry = self.get_by_id(history_id).await.ok_or_else(|| {
+            WebPageManagerError::History {
+                source: HistoryError::EntryNotFound {
+                    history_id: history_id.0.to_string(),
+                },
+            }
+        })?;
+
+        let target_browser = connector.browser_type();
+        let url = &entry.page_info.url;
+
+        // Attempt to create the tab in the target browser
+        match connector.create_tab(url).await {
+            Ok(new_tab_id) => {
+                // Update stats
+                {
+                    let mut stats = self.stats.write().await;
+                    stats.session_restores += 1;
+                }
+
+                info!(
+                    "Restored tab from history: {} -> {:?}",
+                    entry.page_info.title, target_browser
+                );
+
+                Ok(RestoreResult {
+                    history_id: history_id.clone(),
+                    new_tab_id: Some(new_tab_id),
+                    target_browser,
+                    success: true,
+                    error: None,
+                    restored_at: Utc::now(),
+                })
+            }
+            Err(e) => {
+                warn!(
+                    "Failed to restore tab: {} - {}",
+                    entry.page_info.title,
+                    e
+                );
+
+                Ok(RestoreResult {
+                    history_id: history_id.clone(),
+                    new_tab_id: None,
+                    target_browser,
+                    success: false,
+                    error: Some(e.to_string()),
+                    restored_at: Utc::now(),
+                })
+            }
+        }
+    }
+
+    /// Restore multiple history tabs in batch
+    ///
+    /// This method restores multiple tabs at once, returning results for each.
+    pub async fn restore_tabs_batch<C: BrowserConnector>(
+        &self,
+        history_ids: &[HistoryId],
+        connector: &C,
+    ) -> Vec<RestoreResult> {
+        let mut results = Vec::with_capacity(history_ids.len());
+
+        for history_id in history_ids {
+            let result = self.restore_tab(history_id, connector).await;
+            match result {
+                Ok(r) => results.push(r),
+                Err(e) => results.push(RestoreResult {
+                    history_id: history_id.clone(),
+                    new_tab_id: None,
+                    target_browser: connector.browser_type(),
+                    success: false,
+                    error: Some(e.to_string()),
+                    restored_at: Utc::now(),
+                }),
+            }
+        }
+
+        results
+    }
+
+    /// Get the URL for a history entry (for manual restoration)
+    ///
+    /// This is useful when automatic restoration fails and the user
+    /// needs to manually open the URL.
+    pub async fn get_restore_url(&self, history_id: &HistoryId) -> Option<String> {
+        self.get_by_id(history_id)
+            .await
+            .map(|entry| entry.page_info.url)
+    }
+
+    /// Get URLs for multiple history entries
+    pub async fn get_restore_urls(&self, history_ids: &[HistoryId]) -> Vec<(HistoryId, Option<String>)> {
+        let mut results = Vec::with_capacity(history_ids.len());
+
+        for history_id in history_ids {
+            let url = self.get_restore_url(history_id).await;
+            results.push((history_id.clone(), url));
+        }
+
+        results
+    }
+
+    // =========================================================================
+    // Automatic Cleanup (Requirement 7.5)
+    // =========================================================================
+
+    /// Run automatic cleanup based on the configured retention policy
+    ///
+    /// This method applies the default retention policy to clean up old
+    /// and less important history entries.
+    ///
+    /// Implements Requirement 7.5: Automatic cleanup based on time and importance
+    pub async fn run_auto_cleanup(&self) -> CleanupResult {
+        let policy = &self.config.default_retention_policy;
+        self.cleanup_with_policy(policy).await
+    }
+
+    /// Run cleanup with a specific retention policy
+    ///
+    /// This provides more control over the cleanup process.
+    pub async fn cleanup_with_policy(&self, policy: &RetentionPolicy) -> CleanupResult {
+        let deleted_by_age: usize;
+        let mut deleted_by_limit = 0;
+        let mut preserved_important = 0;
+
+        // Step 1: Delete entries older than max_age_days
+        let cutoff = Utc::now() - Duration::days(policy.max_age_days as i64);
+        
+        {
+            let mut cache = self.history_cache.write().await;
+            let initial_len = cache.len();
+
+            if policy.preserve_important {
+                // Keep important entries even if old
+                let mut temp_preserved = 0;
+                cache.retain(|e| {
+                    if e.closed_at >= cutoff {
+                        true
+                    } else {
+                        let importance = self.calculate_importance(e);
+                        if importance >= policy.importance_threshold {
+                            temp_preserved += 1;
+                            true
+                        } else {
+                            false
+                        }
+                    }
+                });
+                preserved_important = temp_preserved;
+                deleted_by_age = initial_len.saturating_sub(cache.len());
+            } else {
+                cache.retain(|e| e.closed_at >= cutoff);
+                deleted_by_age = initial_len.saturating_sub(cache.len());
+            }
+        }
+
+        // Step 2: Trim to max_entries if needed
+        {
+            let mut cache = self.history_cache.write().await;
+
+            if cache.len() > policy.max_entries {
+                if policy.preserve_important {
+                    // Sort by importance (descending) to keep most important
+                    cache.sort_by(|a, b| {
+                        let a_importance = self.calculate_importance(a);
+                        let b_importance = self.calculate_importance(b);
+                        b_importance
+                            .partial_cmp(&a_importance)
+                            .unwrap_or(std::cmp::Ordering::Equal)
+                    });
+                }
+
+                let to_remove = cache.len() - policy.max_entries;
+                cache.truncate(policy.max_entries);
+                deleted_by_limit = to_remove;
+            }
+        }
+
+        // Update stats
+        let remaining_entries = {
+            let cache = self.history_cache.read().await;
+            cache.len()
+        };
+
+        {
+            let mut stats = self.stats.write().await;
+            stats.session_cleanups += deleted_by_age + deleted_by_limit;
+            stats.last_cleanup = Some(Utc::now());
+            stats.cached_entries = remaining_entries;
+        }
+
+        self.update_cache_stats().await;
+
+        let result = CleanupResult {
+            deleted_by_age,
+            deleted_by_limit,
+            preserved_important,
+            remaining_entries,
+            cleaned_at: Utc::now(),
+        };
+
+        info!(
+            "Cleanup completed: {} by age, {} by limit, {} preserved, {} remaining",
+            deleted_by_age, deleted_by_limit, preserved_important, remaining_entries
+        );
+
+        result
+    }
+
+    /// Check if cleanup is needed based on current state
+    pub async fn needs_cleanup(&self) -> bool {
+        let cache = self.history_cache.read().await;
+        let policy = &self.config.default_retention_policy;
+
+        // Check if over max entries
+        if cache.len() > policy.max_entries {
+            return true;
+        }
+
+        // Check if any entries are older than max_age_days
+        let cutoff = Utc::now() - Duration::days(policy.max_age_days as i64);
+        cache.iter().any(|e| e.closed_at < cutoff)
+    }
+
+    /// Get entries that would be deleted by the current retention policy
+    ///
+    /// This is useful for previewing cleanup before actually running it.
+    pub async fn preview_cleanup(&self) -> Vec<HistoryEntry> {
+        let policy = &self.config.default_retention_policy;
+        self.preview_cleanup_with_policy(policy).await
+    }
+
+    /// Preview cleanup with a specific policy
+    pub async fn preview_cleanup_with_policy(&self, policy: &RetentionPolicy) -> Vec<HistoryEntry> {
+        let cache = self.history_cache.read().await;
+        let cutoff = Utc::now() - Duration::days(policy.max_age_days as i64);
+
+        let mut to_delete: Vec<HistoryEntry> = cache
+            .iter()
+            .filter(|e| {
+                if e.closed_at >= cutoff {
+                    false
+                } else if policy.preserve_important {
+                    let importance = self.calculate_importance(e);
+                    importance < policy.importance_threshold
+                } else {
+                    true
+                }
+            })
+            .cloned()
+            .collect();
+
+        // Also include entries that would be deleted due to max_entries limit
+        let remaining_after_age = cache.len() - to_delete.len();
+        if remaining_after_age > policy.max_entries {
+            let mut remaining: Vec<&HistoryEntry> = cache
+                .iter()
+                .filter(|e| !to_delete.iter().any(|d| d.id == e.id))
+                .collect();
+
+            if policy.preserve_important {
+                remaining.sort_by(|a, b| {
+                    let a_importance = self.calculate_importance(a);
+                    let b_importance = self.calculate_importance(b);
+                    a_importance
+                        .partial_cmp(&b_importance)
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                });
+            }
+
+            let excess = remaining_after_age - policy.max_entries;
+            for entry in remaining.into_iter().take(excess) {
+                to_delete.push(entry.clone());
+            }
+        }
+
+        to_delete
+    }
+
+    // =========================================================================
+    // Export and Backup
+    // =========================================================================
+
+    /// Export history entries to a specified format
+    ///
+    /// This creates a backup of history data that can be imported later.
+    pub async fn export(&self, format: ExportFormat) -> Result<String> {
+        let filter = HistoryFilter::default();
+        self.export_filtered(&filter, format).await
+    }
+
+    /// Export filtered history entries
+    pub async fn export_filtered(
+        &self,
+        filter: &HistoryFilter,
+        format: ExportFormat,
+    ) -> Result<String> {
+        let entries = self.get_history(filter).await;
+        
+        let date_range = if entries.is_empty() {
+            None
+        } else {
+            let oldest = entries.iter().map(|e| e.closed_at).min();
+            let newest = entries.iter().map(|e| e.closed_at).max();
+            oldest.zip(newest)
+        };
+
+        let metadata = ExportMetadata {
+            exported_at: Utc::now(),
+            app_version: env!("CARGO_PKG_VERSION").to_string(),
+            entry_count: entries.len(),
+            date_range,
+            format: format!("{:?}", format),
+        };
+
+        let exported = ExportedHistory { metadata, entries };
+
+        match format {
+            ExportFormat::Json => {
+                serde_json::to_string_pretty(&exported).map_err(|e| {
+                    WebPageManagerError::System {
+                        source: SystemError::Configuration {
+                            details: format!("Failed to serialize history: {}", e),
+                        },
+                    }
+                })
+            }
+            ExportFormat::Csv => self.export_to_csv(&exported),
+            ExportFormat::Html => self.export_to_html(&exported),
+        }
+    }
+
+    /// Export to CSV format
+    fn export_to_csv(&self, exported: &ExportedHistory) -> Result<String> {
+        let mut csv = String::new();
+        
+        // Header
+        csv.push_str("id,url,title,browser_type,closed_at,has_summary,keywords\n");
+        
+        // Data rows
+        for entry in &exported.entries {
+            let keywords = entry.page_info.keywords.join(";");
+            let has_summary = entry.page_info.content_summary.is_some();
+            
+            csv.push_str(&format!(
+                "\"{}\",\"{}\",\"{}\",\"{:?}\",\"{}\",{},\"{}\"\n",
+                entry.id.0,
+                entry.page_info.url.replace('"', "\"\""),
+                entry.page_info.title.replace('"', "\"\""),
+                entry.browser_type,
+                entry.closed_at.to_rfc3339(),
+                has_summary,
+                keywords.replace('"', "\"\""),
+            ));
+        }
+        
+        Ok(csv)
+    }
+
+    /// Export to HTML format
+    fn export_to_html(&self, exported: &ExportedHistory) -> Result<String> {
+        let mut html = String::new();
+        
+        html.push_str("<!DOCTYPE html>\n<html>\n<head>\n");
+        html.push_str("<meta charset=\"UTF-8\">\n");
+        html.push_str("<title>Tab History Export</title>\n");
+        html.push_str("<style>\n");
+        html.push_str("body { font-family: Arial, sans-serif; margin: 20px; }\n");
+        html.push_str("table { border-collapse: collapse; width: 100%; }\n");
+        html.push_str("th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }\n");
+        html.push_str("th { background-color: #4CAF50; color: white; }\n");
+        html.push_str("tr:nth-child(even) { background-color: #f2f2f2; }\n");
+        html.push_str("a { color: #1a73e8; }\n");
+        html.push_str(".metadata { margin-bottom: 20px; color: #666; }\n");
+        html.push_str("</style>\n</head>\n<body>\n");
+        
+        // Metadata
+        html.push_str("<div class=\"metadata\">\n");
+        html.push_str(&format!("<p>Exported: {}</p>\n", exported.metadata.exported_at.to_rfc3339()));
+        html.push_str(&format!("<p>Total entries: {}</p>\n", exported.metadata.entry_count));
+        if let Some((oldest, newest)) = exported.metadata.date_range {
+            html.push_str(&format!(
+                "<p>Date range: {} to {}</p>\n",
+                oldest.format("%Y-%m-%d"),
+                newest.format("%Y-%m-%d")
+            ));
+        }
+        html.push_str("</div>\n");
+        
+        // Table
+        html.push_str("<table>\n<tr>\n");
+        html.push_str("<th>Title</th><th>URL</th><th>Browser</th><th>Closed At</th>\n");
+        html.push_str("</tr>\n");
+        
+        for entry in &exported.entries {
+            html.push_str("<tr>\n");
+            html.push_str(&format!(
+                "<td>{}</td>\n",
+                html_escape(&entry.page_info.title)
+            ));
+            html.push_str(&format!(
+                "<td><a href=\"{}\">{}</a></td>\n",
+                html_escape(&entry.page_info.url),
+                html_escape(&truncate_url(&entry.page_info.url, 50))
+            ));
+            html.push_str(&format!("<td>{:?}</td>\n", entry.browser_type));
+            html.push_str(&format!(
+                "<td>{}</td>\n",
+                entry.closed_at.format("%Y-%m-%d %H:%M")
+            ));
+            html.push_str("</tr>\n");
+        }
+        
+        html.push_str("</table>\n</body>\n</html>");
+        
+        Ok(html)
+    }
+
+    /// Import history from exported JSON data
+    pub async fn import(&self, json_data: &str) -> Result<usize> {
+        let exported: ExportedHistory = serde_json::from_str(json_data).map_err(|e| {
+            WebPageManagerError::System {
+                source: SystemError::Configuration {
+                    details: format!("Failed to parse history data: {}", e),
+                },
+            }
+        })?;
+
+        let mut imported_count = 0;
+        let mut cache = self.history_cache.write().await;
+
+        for entry in exported.entries {
+            // Check for duplicates by ID
+            if !cache.iter().any(|e| e.id == entry.id) {
+                cache.push(entry);
+                imported_count += 1;
+            }
+        }
+
+        // Trim cache if needed
+        while cache.len() > self.config.max_cache_entries {
+            cache.remove(0);
+        }
+
+        drop(cache);
+        self.update_cache_stats().await;
+
+        info!("Imported {} history entries", imported_count);
+        Ok(imported_count)
+    }
+
+    /// Save history to a file
+    pub async fn save_to_file(&self, path: &Path, format: ExportFormat) -> Result<()> {
+        let content = self.export(format).await?;
+        
+        tokio::fs::write(path, content).await.map_err(|e| {
+            WebPageManagerError::System {
+                source: SystemError::Configuration {
+                    details: format!("Failed to write history file: {}", e),
+                },
+            }
+        })?;
+
+        info!("Saved history to {:?}", path);
+        Ok(())
+    }
+
+    /// Load history from a file
+    pub async fn load_from_file(&self, path: &Path) -> Result<usize> {
+        let content = tokio::fs::read_to_string(path).await.map_err(|e| {
+            WebPageManagerError::System {
+                source: SystemError::Configuration {
+                    details: format!("Failed to read history file: {}", e),
+                },
+            }
+        })?;
+
+        self.import(&content).await
+    }
+}
+
+/// Helper function to escape HTML special characters
+fn html_escape(s: &str) -> String {
+    s.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+        .replace('\'', "&#39;")
+}
+
+/// Helper function to truncate URLs for display
+fn truncate_url(url: &str, max_len: usize) -> String {
+    if url.len() <= max_len {
+        url.to_string()
+    } else {
+        format!("{}...", &url[..max_len - 3])
+    }
 }
 
 impl Default for TabHistoryManager {
@@ -1061,5 +1660,351 @@ mod tests {
 
         // Ensure different entries
         assert_ne!(page1[0].id, page2[0].id);
+    }
+
+    // =========================================================================
+    // Tests for Tab Restoration (Requirement 7.4)
+    // =========================================================================
+
+    #[tokio::test]
+    async fn test_get_restore_url() {
+        let manager = TabHistoryManager::new();
+        let tab = create_test_tab("https://restore.example.com", "Restore Test", BrowserType::Chrome);
+
+        let history_id = manager.save_closed_tab(tab, Utc::now()).await.unwrap();
+        
+        let url = manager.get_restore_url(&history_id).await;
+        assert!(url.is_some());
+        assert_eq!(url.unwrap(), "https://restore.example.com");
+    }
+
+    #[tokio::test]
+    async fn test_get_restore_url_not_found() {
+        let manager = TabHistoryManager::new();
+        let fake_id = HistoryId::new();
+        
+        let url = manager.get_restore_url(&fake_id).await;
+        assert!(url.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_get_restore_urls_batch() {
+        let manager = TabHistoryManager::new();
+        
+        let tab1 = create_test_tab("https://url1.example.com", "URL 1", BrowserType::Chrome);
+        let tab2 = create_test_tab("https://url2.example.com", "URL 2", BrowserType::Chrome);
+        
+        let id1 = manager.save_closed_tab(tab1, Utc::now()).await.unwrap();
+        let id2 = manager.save_closed_tab(tab2, Utc::now()).await.unwrap();
+        let fake_id = HistoryId::new();
+        
+        let results = manager.get_restore_urls(&[id1.clone(), id2.clone(), fake_id]).await;
+        
+        assert_eq!(results.len(), 3);
+        assert!(results[0].1.is_some());
+        assert!(results[1].1.is_some());
+        assert!(results[2].1.is_none());
+    }
+
+    // =========================================================================
+    // Tests for Automatic Cleanup (Requirement 7.5)
+    // =========================================================================
+
+    #[tokio::test]
+    async fn test_cleanup_with_policy() {
+        let manager = TabHistoryManager::new();
+
+        // Add entries with different ages
+        for i in 0..5 {
+            let tab = create_test_tab(
+                &format!("https://example{}.com", i),
+                &format!("Example {}", i),
+                BrowserType::Chrome,
+            );
+            manager.save_closed_tab(tab, Utc::now()).await.unwrap();
+        }
+
+        let policy = RetentionPolicy {
+            max_age_days: 30,
+            max_entries: 3,
+            preserve_important: false,
+            importance_threshold: 0.5,
+        };
+
+        let result = manager.cleanup_with_policy(&policy).await;
+        
+        assert_eq!(result.deleted_by_limit, 2);
+        assert_eq!(result.remaining_entries, 3);
+    }
+
+    #[tokio::test]
+    async fn test_cleanup_preserves_important() {
+        let manager = TabHistoryManager::new();
+
+        // Add an entry with content summary (more important)
+        let summary = ContentSummary {
+            summary_text: "Important content".to_string(),
+            key_points: vec!["Key point".to_string()],
+            content_type: ContentType::Article,
+            language: "en".to_string(),
+            reading_time_minutes: 5,
+            confidence_score: 0.9,
+            generated_at: Utc::now(),
+        };
+        manager.register_content_summary("https://important.example.com", summary).await;
+
+        let important_tab = create_test_tab("https://important.example.com", "Important", BrowserType::Chrome);
+        manager.save_closed_tab(important_tab, Utc::now() - Duration::days(40)).await.unwrap();
+
+        // Add regular entries
+        for i in 0..3 {
+            let tab = create_test_tab(
+                &format!("https://regular{}.com", i),
+                &format!("Regular {}", i),
+                BrowserType::Chrome,
+            );
+            manager.save_closed_tab(tab, Utc::now()).await.unwrap();
+        }
+
+        let policy = RetentionPolicy {
+            max_age_days: 30,
+            max_entries: 10,
+            preserve_important: true,
+            importance_threshold: 0.2, // Low threshold to preserve the important entry
+        };
+
+        let result = manager.cleanup_with_policy(&policy).await;
+        
+        // The important entry should be preserved even though it's old
+        assert!(result.preserved_important > 0 || result.deleted_by_age == 0);
+    }
+
+    #[tokio::test]
+    async fn test_needs_cleanup() {
+        let config = TabHistoryManagerConfig {
+            max_cache_entries: 5,
+            default_retention_policy: RetentionPolicy {
+                max_age_days: 30,
+                max_entries: 3,
+                preserve_important: false,
+                importance_threshold: 0.5,
+            },
+            ..Default::default()
+        };
+        let manager = TabHistoryManager::with_config(config);
+
+        // Initially no cleanup needed
+        assert!(!manager.needs_cleanup().await);
+
+        // Add entries beyond max_entries
+        for i in 0..5 {
+            let tab = create_test_tab(
+                &format!("https://example{}.com", i),
+                &format!("Example {}", i),
+                BrowserType::Chrome,
+            );
+            manager.save_closed_tab(tab, Utc::now()).await.unwrap();
+        }
+
+        // Now cleanup should be needed
+        assert!(manager.needs_cleanup().await);
+    }
+
+    #[tokio::test]
+    async fn test_preview_cleanup() {
+        let manager = TabHistoryManager::new();
+
+        // Add entries
+        for i in 0..5 {
+            let tab = create_test_tab(
+                &format!("https://example{}.com", i),
+                &format!("Example {}", i),
+                BrowserType::Chrome,
+            );
+            manager.save_closed_tab(tab, Utc::now()).await.unwrap();
+        }
+
+        let policy = RetentionPolicy {
+            max_age_days: 30,
+            max_entries: 3,
+            preserve_important: false,
+            importance_threshold: 0.5,
+        };
+
+        let to_delete = manager.preview_cleanup_with_policy(&policy).await;
+        
+        // Should preview 2 entries for deletion
+        assert_eq!(to_delete.len(), 2);
+        
+        // Actual count should still be 5 (preview doesn't delete)
+        assert_eq!(manager.total_count().await, 5);
+    }
+
+    #[tokio::test]
+    async fn test_run_auto_cleanup() {
+        let config = TabHistoryManagerConfig {
+            default_retention_policy: RetentionPolicy {
+                max_age_days: 30,
+                max_entries: 3,
+                preserve_important: false,
+                importance_threshold: 0.5,
+            },
+            ..Default::default()
+        };
+        let manager = TabHistoryManager::with_config(config);
+
+        // Add entries
+        for i in 0..5 {
+            let tab = create_test_tab(
+                &format!("https://example{}.com", i),
+                &format!("Example {}", i),
+                BrowserType::Chrome,
+            );
+            manager.save_closed_tab(tab, Utc::now()).await.unwrap();
+        }
+
+        let result = manager.run_auto_cleanup().await;
+        
+        assert_eq!(result.remaining_entries, 3);
+        
+        // Stats should be updated
+        let stats = manager.get_stats().await;
+        assert!(stats.last_cleanup.is_some());
+    }
+
+    // =========================================================================
+    // Tests for Export and Backup
+    // =========================================================================
+
+    #[tokio::test]
+    async fn test_export_json() {
+        let manager = TabHistoryManager::new();
+
+        let tab = create_test_tab("https://export.example.com", "Export Test", BrowserType::Chrome);
+        manager.save_closed_tab(tab, Utc::now()).await.unwrap();
+
+        let json = manager.export(ExportFormat::Json).await.unwrap();
+        
+        assert!(json.contains("export.example.com"));
+        assert!(json.contains("Export Test"));
+        assert!(json.contains("exported_at"));
+        assert!(json.contains("entry_count"));
+    }
+
+    #[tokio::test]
+    async fn test_export_csv() {
+        let manager = TabHistoryManager::new();
+
+        let tab = create_test_tab("https://csv.example.com", "CSV Test", BrowserType::Chrome);
+        manager.save_closed_tab(tab, Utc::now()).await.unwrap();
+
+        let csv = manager.export(ExportFormat::Csv).await.unwrap();
+        
+        assert!(csv.contains("id,url,title,browser_type"));
+        assert!(csv.contains("csv.example.com"));
+        assert!(csv.contains("CSV Test"));
+    }
+
+    #[tokio::test]
+    async fn test_export_html() {
+        let manager = TabHistoryManager::new();
+
+        let tab = create_test_tab("https://html.example.com", "HTML Test", BrowserType::Chrome);
+        manager.save_closed_tab(tab, Utc::now()).await.unwrap();
+
+        let html = manager.export(ExportFormat::Html).await.unwrap();
+        
+        assert!(html.contains("<!DOCTYPE html>"));
+        assert!(html.contains("html.example.com"));
+        assert!(html.contains("HTML Test"));
+        assert!(html.contains("<table>"));
+    }
+
+    #[tokio::test]
+    async fn test_import_json() {
+        let manager = TabHistoryManager::new();
+
+        // First export some data
+        let tab = create_test_tab("https://import.example.com", "Import Test", BrowserType::Chrome);
+        manager.save_closed_tab(tab, Utc::now()).await.unwrap();
+        
+        let json = manager.export(ExportFormat::Json).await.unwrap();
+        
+        // Clear and reimport
+        manager.clear().await;
+        assert_eq!(manager.total_count().await, 0);
+        
+        let imported = manager.import(&json).await.unwrap();
+        
+        assert_eq!(imported, 1);
+        assert_eq!(manager.total_count().await, 1);
+        
+        let history = manager.get_recent(1).await;
+        assert_eq!(history[0].page_info.url, "https://import.example.com");
+    }
+
+    #[tokio::test]
+    async fn test_import_skips_duplicates() {
+        let manager = TabHistoryManager::new();
+
+        let tab = create_test_tab("https://duplicate.example.com", "Duplicate Test", BrowserType::Chrome);
+        manager.save_closed_tab(tab, Utc::now()).await.unwrap();
+        
+        let json = manager.export(ExportFormat::Json).await.unwrap();
+        
+        // Try to import the same data again
+        let imported = manager.import(&json).await.unwrap();
+        
+        // Should skip duplicates
+        assert_eq!(imported, 0);
+        assert_eq!(manager.total_count().await, 1);
+    }
+
+    #[tokio::test]
+    async fn test_export_filtered() {
+        let manager = TabHistoryManager::new();
+
+        let chrome_tab = create_test_tab("https://chrome.example.com", "Chrome", BrowserType::Chrome);
+        let firefox_tab = create_test_tab("https://firefox.example.com", "Firefox", BrowserType::Firefox);
+        
+        manager.save_closed_tab(chrome_tab, Utc::now()).await.unwrap();
+        manager.save_closed_tab(firefox_tab, Utc::now()).await.unwrap();
+
+        let filter = HistoryFilter {
+            browser_type: Some(BrowserType::Chrome),
+            ..Default::default()
+        };
+
+        let json = manager.export_filtered(&filter, ExportFormat::Json).await.unwrap();
+        
+        assert!(json.contains("chrome.example.com"));
+        assert!(!json.contains("firefox.example.com"));
+    }
+
+    #[tokio::test]
+    async fn test_cleanup_stats_updated() {
+        let manager = TabHistoryManager::new();
+
+        for i in 0..5 {
+            let tab = create_test_tab(
+                &format!("https://example{}.com", i),
+                &format!("Example {}", i),
+                BrowserType::Chrome,
+            );
+            manager.save_closed_tab(tab, Utc::now()).await.unwrap();
+        }
+
+        let policy = RetentionPolicy {
+            max_age_days: 30,
+            max_entries: 3,
+            preserve_important: false,
+            importance_threshold: 0.5,
+        };
+
+        manager.cleanup_with_policy(&policy).await;
+        
+        let stats = manager.get_stats().await;
+        assert!(stats.session_cleanups > 0);
+        assert!(stats.last_cleanup.is_some());
     }
 }
