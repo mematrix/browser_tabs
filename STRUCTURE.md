@@ -557,3 +557,53 @@ Unified management of tabs and bookmarks with data merging, association matching
 #### Enhanced Statistics
 - `session_cleanups` - Number of entries cleaned up in current session
 - `last_cleanup` - Timestamp of last cleanup operation
+
+
+## Remote Tab Controller (Task 8.1)
+
+### Remote Controller Module (`page-manager/src/remote_controller.rs`)
+
+#### Core Tab Operations (Requirement 1.5)
+- `close_tab()` - Close a tab in a browser with optional tab info for undo support
+- `activate_tab()` - Activate/focus a tab in a browser
+- `create_tab()` - Create a new tab with a URL
+- All operations work with both direct `BrowserConnector` trait and `BrowserConnectorManager`
+- `close_tab_via_manager()` / `activate_tab_via_manager()` / `create_tab_via_manager()` - Operations using BrowserConnectorManager
+
+#### Operation Result Verification and Error Handling
+- `TabOperationResult` - Result structure with operation record, new tab ID, and verification status
+- `OperationStatus` - Enum for operation status (Success, Failed, PendingVerification, RolledBack)
+- `TabOperationType` - Enum for operation types (Close, Activate, Create)
+- Proper error propagation using existing error types
+- Logging of all operations with tracing
+
+#### Operation History and Undo Mechanism
+- `TabOperationRecord` - Record for tracking all operations (id, type, browser, tab_id, url, title, status, timestamp, undoable, related_operation_id)
+- Configurable history size via `RemoteTabControllerConfig` (default 100 operations)
+- `undo_close()` - Reopen a closed tab by creating a new tab with the same URL
+- `undo_create()` - Close a created tab
+- `undo_last()` - Undo the most recent undoable operation
+- Operations linked via `related_operation_id` for tracking undo relationships
+- `get_history()` - Get full operation history
+- `get_recent_operations()` - Get recent operations
+- `get_undoable_operations()` - Get operations that can be undone
+
+#### Statistics and Management
+- `RemoteControllerStats` - Statistics structure (total_operations, successful_operations, failed_operations, operations_by_type, operations_by_browser, undo_operations, history_size)
+- `get_stats()` - Get controller statistics
+- `clear_history()` - Clear operation history
+- `get_operation()` - Get operation by ID
+- `get_operations_for_browser()` - Get operations for a specific browser
+- `get_operations_by_type()` - Get operations of a specific type
+- `get_failed_operations()` - Get failed operations
+
+#### Configuration
+- `RemoteTabControllerConfig` - Configuration options:
+  - `max_history_size` - Maximum operations in history (default 100)
+  - `verify_operations` - Whether to verify operations after execution
+  - `verification_timeout_ms` - Timeout for verification (default 5000ms)
+  - `enable_undo` - Whether to enable undo functionality
+  - `max_retry_attempts` - Maximum retry attempts for failed operations (default 2)
+
+#### Design Properties
+- Property 4: Remote control operation atomicity - Operations either fully succeed or fully fail, maintaining original state
