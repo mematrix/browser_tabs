@@ -8,6 +8,7 @@
 - `ai-processor/` - C++ AI content processing (content analyzer, similarity calculator, group suggester)
 - `ai-processor-ffi/` - Rust FFI bindings for C++ AI processor
 - `ui-manager/` - Multi-UI framework support (Flutter, WinUI, GTK, Qt) with compile-time selection
+- `page-manager/` - Unified page management for tabs and bookmarks (data merging, association matching, synchronization)
 
 ## Key Components Implemented
 
@@ -335,3 +336,89 @@ The AI content processor implementation includes:
 - Cargo workspace for Rust modules
 - CMake for C++ AI processor with platform detection
 - Compile-time UI framework selection via Cargo features
+
+
+## Page Unified Manager (Task 6.1)
+
+### New `page-manager` Crate
+
+Unified management of tabs and bookmarks with data merging, association matching, and synchronization.
+
+#### Matcher Module (`matcher.rs`)
+
+**Tab-Bookmark Association Matching (Requirements 6.1, 6.2)**
+- `TabBookmarkMatcher` - Main matcher for tab-bookmark associations
+- URL normalization for consistent matching (removes trailing slashes, normalizes scheme, handles case)
+- Exact URL matching with confidence 1.0
+- Domain-based matching with confidence 0.5
+- `MatcherConfig` - Configurable matching options (similarity threshold, match types, URL normalization)
+- `find_matches_for_tab()` - Find all bookmarks matching a tab
+- `find_matches_for_bookmark()` - Find all tabs matching a bookmark
+- `build_match_map()` - Build complete match map between tabs and bookmarks
+
+**Content Change Detection (Requirement 6.2)**
+- `ContentChangeDetector` - Detects changes between tabs and their matching bookmarks
+- `ContentChangeDetection` - Result structure with title/favicon change flags
+- `detect_changes()` - Compare single tab-bookmark pair
+- `detect_all_changes()` - Detect changes for all matched pairs
+
+#### Sync Module (`sync.rs`)
+
+**Data Synchronization (Requirements 6.2, 6.3)**
+- `DataSyncManager` - Main synchronization manager
+- `SyncAction` - Enum for sync operations (UpdateBookmark, CreateBookmark, UpdateUnifiedPage)
+- `SyncResult` - Result of synchronization with performed actions and errors
+- `PageUpdates` - Updates to apply to unified pages
+
+**Sync Operations**
+- `generate_sync_actions()` - Generate sync actions from detected changes
+- `apply_bookmark_update()` - Apply updates to a bookmark
+- `create_bookmark_from_tab_with_inheritance()` - Create bookmark with data inheritance
+- `merge_to_unified_page()` - Merge tab and bookmark into unified page
+- `batch_merge()` - Batch merge tabs and bookmarks into unified pages
+
+**Sync Queue**
+- `SyncQueue` - Queue for managing pending sync items
+- `PendingSyncItem` - Pending sync item with change detection and suggested action
+- Approval workflow for user-controlled synchronization
+
+#### Unified Manager Module (`unified_manager.rs`)
+
+**Main Management Interface (Requirements 6.1, 6.2, 6.3)**
+- `PageUnifiedManager` - Main component for unified tab/bookmark management
+- `PageUnifiedManagerConfig` - Configuration options
+- `TabAssociationStatus` - Association status for a tab (has_bookmark, pending_changes)
+- `UnifiedManagerStats` - Statistics about manager state
+
+**Data Management**
+- `update_tabs()` - Update with new tab data
+- `update_bookmarks()` - Update with new bookmark data
+- `update_all()` - Update both tabs and bookmarks
+- Automatic association refresh and change detection
+
+**Query Methods**
+- `get_unified_pages()` - Get all unified pages
+- `get_unified_page_by_id()` / `get_unified_page_by_url()` - Get specific page
+- `get_tab_association_status()` - Get association status for a tab
+- `get_tabs_with_bookmarks()` - Get tabs that have matching bookmarks
+- `get_tabs_with_pending_changes()` - Get tabs with detected changes
+- `find_bookmarks_for_tab()` / `find_tabs_for_bookmark()` - Find matches
+
+**Sync Methods**
+- `pending_sync_count()` / `get_pending_sync_items()` - Query pending syncs
+- `approve_sync_item()` / `approve_all_sync_items()` - Approve syncs
+- `execute_approved_syncs()` - Execute approved synchronizations
+- `clear_pending_syncs()` - Clear pending items
+
+**Bookmark Creation (Requirement 6.3)**
+- `create_bookmark_from_tab()` - Create bookmark with data inheritance from unified page
+
+#### Property Tests (`tests/property_tests.rs`)
+
+**Correctness Properties Validated**
+- Property 15: Tab-Bookmark Association Consistency - Tabs and bookmarks with same URL match correctly
+- Property 16: Data Inheritance Integrity - Bookmarks inherit content summary and keywords from tabs
+- URL normalization idempotence
+- Match confidence ordering (exact > domain)
+- Batch merge URL preservation
+- Content change detection accuracy

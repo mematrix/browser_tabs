@@ -1,0 +1,25 @@
+[package]
+name = "page-manager"
+version = "0.1.0"
+edition = "2021"
+description = "Unified page management for Web Page Manager - handles tab and bookmark data merging"
+
+[dependencies]
+web-page-manager-core = { path = "../core" }
+data-access = { path = "../data-access" }
+browser-connector = { path = "../browser-connector" }
+ai-processor-ffi = { path = "../ai-processor-ffi" }
+
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+async-trait = "0.1"
+url = "2.5"
+
+[dev-dependencies]
+proptest = "1.4"
+tokio-test = "0.4"

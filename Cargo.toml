@@ -4,7 +4,8 @@ members = [
     "ui-manager",
     "browser-connector", 
     "ai-processor-ffi",
-    "data-access"
+    "data-access",
+    "page-manager"
 ]
 resolver = "2"
 
