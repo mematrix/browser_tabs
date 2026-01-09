@@ -1,2 +1,5 @@
 target/
 build/
+
+.dart_tool/
+.flutter-plugins*

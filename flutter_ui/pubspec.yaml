@@ -1,0 +1,59 @@
+name: web_page_manager_ui
+description: Web Page Manager - Cross-platform Flutter UI for managing browser tabs and bookmarks
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # State management
+  provider: ^6.1.1
+  
+  # Navigation
+  go_router: ^13.0.0
+  
+  # UI components
+  cupertino_icons: ^1.0.6
+  flutter_svg: ^2.0.9
+  cached_network_image: ^3.3.1
+  
+  # System integration
+  system_tray: ^2.0.3
+  local_notifier: ^0.1.6
+  hotkey_manager: ^0.2.0
+  window_manager: ^0.3.8
+  
+  # Data handling
+  json_annotation: ^4.8.1
+  intl: ^0.19.0
+  
+  # FFI for Rust integration
+  ffi: ^2.1.0
+  
+  # Utilities
+  url_launcher: ^6.2.2
+  path_provider: ^2.1.2
+  shared_preferences: ^2.2.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.1
+  json_serializable: ^6.7.1
+  build_runner: ^2.4.8
+
+flutter:
+  uses-material-design: true
+  
+  assets:
+    - assets/icons/
+    - assets/images/
+  
+  fonts:
+    - family: WebPageManager
+      fonts:
+        - asset: assets/fonts/WebPageManager.ttf
