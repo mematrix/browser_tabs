@@ -467,3 +467,51 @@ Unified management of tabs and bookmarks with data merging, association matching
 - Search history tracking with deduplication
 - Auto-complete suggestions from multiple sources
 - Result deduplication with source priority (ActiveTab > Bookmark > UnifiedPage > History > Archive)
+
+
+## Tab History Manager (Task 7.1)
+
+### History Module (`page-manager/src/history.rs`)
+
+#### Tab Close Event Listening (Requirement 7.1)
+- `process_tab_events()` - Processes TabEvent::Closed events from the TabMonitor
+- `should_save_tab()` - Filters out private tabs, internal browser pages, and tabs that were open for less than the minimum lifetime
+- Configurable minimum tab lifetime before saving to history
+- Option to include/exclude internal browser pages (chrome://, edge://, about:, etc.)
+
+#### History Record Saving and Management (Requirement 7.2)
+- `save_closed_tab()` - Saves complete tab information including title, URL, close time, favicon, browser type, and content summary
+- `register_content_summary()` - Allows enriching history entries with AI-generated content summaries
+- In-memory cache with configurable max entries (`max_cache_entries`)
+- Session info tracking (session ID, window ID, tab index)
+- `TabHistoryManagerConfig` - Configuration options for cache size, auto-save, minimum tab lifetime, internal page handling, retention policy
+
+#### History Query and Filtering (Requirement 7.3)
+- `get_history()` - Query with comprehensive filtering (browser type, date range, URL/title patterns, pagination)
+- `search()` - Full-text search across title, URL, and content summary with relevance-based sorting
+- `get_recent()` - Get most recent history entries
+- `get_by_browser()` - Filter by browser type
+- `get_in_time_range()` - Filter by date range
+- `get_recently_closed()` - Get entries closed within N minutes
+- `count()` - Count entries matching a filter
+- `get_by_id()` - Get specific entry by ID
+
+#### History Management
+- `delete()` - Delete entry by ID
+- `delete_older_than()` - Delete entries older than a timestamp
+- `apply_retention_policy()` - Automatic cleanup based on age and entry count with importance-based preservation
+- `clear()` - Clear all history entries
+- Importance calculation based on content summary presence, keywords, and recency
+
+#### Statistics and Analytics
+- `get_stats()` - Comprehensive statistics including entry counts by browser, session saves/restores, date ranges
+- `get_entries_by_domain()` - Group entries by domain
+- `get_top_domains()` - Get most frequently closed domains
+- `HistoryManagerStats` - Statistics structure with cached entries, entries by browser, session saves/restores, oldest/newest entry timestamps
+
+#### Data Structures
+- `TabHistoryManager` - Main manager struct with in-memory cache and content summary registry
+- `TabHistoryManagerConfig` - Configuration options
+- `HistoryManagerStats` - Statistics about the history manager
+- Integration with `TabMonitor` for event subscription
+- Uses core types: `HistoryEntry`, `HistoryFilter`, `RetentionPolicy`, `SessionInfo`
