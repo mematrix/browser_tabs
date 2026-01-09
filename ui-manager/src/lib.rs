@@ -3,6 +3,26 @@ use web_page_manager_core::*;
 pub mod traits;
 pub mod flutter;
 pub mod native;
+pub mod system_integration;
+
+pub use system_integration::{
+    CrossPlatformHotkeyManager,
+    CrossPlatformNotificationManager,
+    CrossPlatformTrayManager,
+    SystemIntegrationService,
+    HotkeyRegistration,
+    HotkeyCallback,
+    FnHotkeyCallback,
+    NotificationRecord,
+    NotificationStatus,
+    NotificationCallback,
+    TrayMenuItem,
+    TrayEvent,
+    TrayEventHandler,
+    FnTrayEventHandler,
+    ParsedKeyCombination,
+    KeyModifier,
+};
 
 pub use traits::*;
 

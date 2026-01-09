@@ -1049,3 +1049,118 @@ All framework implementations (Flutter, WinUI, GTK, Qt) updated to implement the
 ### Requirements Implemented
 - **Requirement 4.1**: Flutter cross-platform UI and platform native UI options
 - **Requirement 8.1**: WinUI 3 framework support for Windows native mode
+
+
+## Cross-Platform System Integration (Task 10.4)
+
+### System Integration Module (`ui-manager/src/system_integration.rs`)
+
+A unified cross-platform system integration layer providing hotkey management, notifications, and system tray functionality.
+
+#### CrossPlatformHotkeyManager - Unified Global Hotkey Management
+- `initialize()` - Initialize the hotkey manager with platform-specific setup
+- `register_hotkey()` - Register a global hotkey with callback
+- `unregister_hotkey()` - Unregister a specific hotkey
+- `unregister_all()` - Unregister all hotkeys
+- `get_registered_hotkeys()` - Get list of registered hotkeys
+- `is_hotkey_registered()` - Check if a hotkey is registered
+- `parse_key_combination()` - Parse key combination strings (e.g., "Ctrl+Shift+F")
+- Platform-specific registration stubs for Windows, Linux, and macOS
+- `HotkeyRegistration` - Registration info with id, key combination, action, description, active status
+- `HotkeyCallback` trait - Callback interface for hotkey events
+- `FnHotkeyCallback` - Simple function-based callback implementation
+- `ParsedKeyCombination` - Parsed key combination with modifiers and key
+- `KeyModifier` - Modifier keys (Ctrl, Alt, Shift, Meta/Win/Cmd)
+
+#### CrossPlatformNotificationManager - Unified System Notifications
+- `initialize()` - Initialize notification support
+- `show_notification()` - Show a notification with full configuration
+- `show_simple()` - Show a simple notification with just a message
+- `show_with_title()` - Show a notification with title and message
+- `show_tab_activity()` - Pre-built notification for tab activity
+- `show_bookmark_sync()` - Pre-built notification for bookmark sync completion
+- `show_analysis_complete()` - Pre-built notification for analysis completion
+- `show_duplicates_found()` - Pre-built notification for duplicate detection
+- `get_history()` - Get notification history
+- `clear_history()` - Clear notification history
+- Platform-specific notification stubs for Windows (Toast), Linux (libnotify/D-Bus), macOS (UNUserNotificationCenter)
+- `NotificationRecord` - Record of sent notifications with status tracking
+- `NotificationStatus` - Status enum (Pending, Shown, Clicked, Dismissed, TimedOut, Failed)
+- `NotificationCallback` trait - Callback interface for notification events
+
+#### CrossPlatformTrayManager - Unified System Tray Functionality
+- `initialize()` - Initialize system tray with default menu
+- `set_menu()` - Set context menu items
+- `set_tooltip()` - Update tooltip text
+- `set_activity_badge()` - Update tooltip with activity count
+- `set_event_handler()` - Set event handler for tray events
+- `show()` / `hide()` - Show/hide tray icon
+- `get_tooltip()` / `get_menu()` - Get current tooltip and menu
+- Platform-specific tray stubs for Windows (Shell_NotifyIcon), Linux (StatusNotifierItem/AppIndicator), macOS (NSStatusItem)
+- `TrayMenuItem` - Menu item types (Item, Separator, Submenu) with factory methods
+- `TrayEvent` - Event types (IconClicked, IconDoubleClicked, IconRightClicked, MenuItemSelected)
+- `TrayEventHandler` trait - Callback interface for tray events
+- `FnTrayEventHandler` - Simple function-based event handler
+
+#### SystemIntegrationService - Combined Service
+- `initialize()` - Initialize all system integration components
+- `is_initialized()` - Check initialization status
+- Hotkey methods: `register_hotkey()`, `register_default_hotkeys()`, `unregister_hotkey()`, `unregister_all_hotkeys()`, `get_registered_hotkeys()`
+- Notification methods: `show_notification()`, `show_simple_notification()`, `show_notification_with_title()`, `notify_tab_activity()`, `notify_bookmark_sync()`, `notify_analysis_complete()`, `notify_duplicates_found()`
+- Tray methods: `show_tray()`, `hide_tray()`, `set_tray_tooltip()`, `set_tray_badge()`, `set_tray_menu()`, `set_tray_event_handler()`
+- `shutdown()` - Shutdown all components
+- Access to individual managers via `hotkey_manager()`, `notification_manager()`, `tray_manager()`
+
+### Flutter UI Services Updates (`flutter_ui/lib/services/`)
+
+#### HotkeyService (`hotkey_service.dart`)
+- `HotkeyDefinition` - Hotkey definition with id, key combination, action, description
+- `initialize()` - Initialize the hotkey service
+- `registerHotkey()` - Register a hotkey with callback
+- `unregisterHotkey()` - Unregister a hotkey
+- `registerDefaultHotkeys()` - Register default application hotkeys (Ctrl+Shift+F, Ctrl+Shift+W, Ctrl+Shift+T)
+- `unregisterAll()` - Unregister all hotkeys
+- `handleHotkeyPressed()` - Handle hotkey press events from Rust backend
+- `registeredHotkeyIds` / `registeredHotkeys` - Get registered hotkeys
+- `isHotkeyRegistered()` - Check if a hotkey is registered
+
+#### NotificationService (`notification_service.dart`)
+- `NotificationConfig` - Notification configuration with title, body, urgency, actions, timeout
+- `NotificationUrgency` - Urgency levels (low, normal, high, critical)
+- `NotificationAction` - Action button definition
+- `initialize()` - Initialize the notification service
+- `showNotification()` - Show a notification with full configuration
+- `showSimple()` / `showWithTitle()` - Convenience methods
+- `showTabActivityNotification()` - Pre-built notification for tab activity
+- `showBookmarkSyncNotification()` - Pre-built notification for bookmark sync
+- `showAnalysisCompleteNotification()` - Pre-built notification for analysis completion
+- `showDuplicatesFoundNotification()` - Pre-built notification for duplicate detection
+
+#### SystemTrayService (`system_tray_service.dart`)
+- `TrayMenuItem` - Abstract class with static factory methods (item, separator, submenu)
+- `TrayMenuItemLabel` / `TrayMenuSeparator` / `TrayMenuSubmenu` - Menu item implementations
+- `TrayEvent` / `TrayEventType` - Event types and event class
+- `TrayEventCallback` - Callback type for tray events
+- `initialize()` - Initialize with default menu
+- `setMenu()` - Set context menu items
+- `setTooltip()` - Update tooltip text
+- `setActivityBadge()` - Update tooltip with activity count
+- `setEventCallback()` - Set event callback
+- `handleTrayEvent()` - Handle tray events from Rust backend
+- `show()` / `hide()` - Show/hide tray icon
+- `hideToTray()` / `restoreFromTray()` - Window management
+
+### Unit Tests (12 tests)
+- Hotkey manager creation and initialization
+- Key combination parsing (Ctrl+Shift+F, Alt+Tab, Win+E)
+- Hotkey registration and unregistration
+- Notification manager creation and initialization
+- Notification showing and history tracking
+- Tray manager creation and initialization
+- Tray menu item creation (item, separator, checkable)
+- Tray tooltip management and activity badge
+- System integration service lifecycle
+
+### Requirements Implemented
+- **Requirement 4.2**: System tray with quick access functionality (Windows, Linux, macOS)
+- **Requirement 4.4**: Global hotkey support for quick operations

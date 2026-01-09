@@ -1673,12 +1673,14 @@ name = "ui-manager"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "chrono",
  "libc",
  "serde",
  "serde_json",
  "thiserror",
  "tokio",
  "tracing",
+ "uuid",
  "web-page-manager-core",
  "windows",
 ]
