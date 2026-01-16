@@ -788,3 +788,459 @@ mod unit_tests {
         }
     }
 }
+
+// ============================================================================
+// Feature: web-page-manager, Property 2: AI内容分组一致性 (AI Content Grouping Consistency)
+// Validates: Requirements 1.3
+//
+// Property: For any tab collection, when content has similarity features,
+// the AI grouping algorithm should categorize related content into the same group,
+// and grouping results should be deterministic.
+// ============================================================================
+
+use ai_processor_ffi::{
+    ai_processor_suggest_groups, ai_processor_free_groups,
+    CGroupSuggestion, CGroupType,
+};
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(100))]
+
+    /// Feature: web-page-manager, Property 2: AI内容分组一致性
+    /// Validates: Requirements 1.3
+    ///
+    /// Sub-property 2a: Similar content is grouped together
+    /// For any collection of pages with similar content, the grouping algorithm
+    /// should place them in the same group.
+    #[test]
+    fn prop_similar_content_grouped_together(
+        base_content in "[A-Z][a-z]{3,15}( [a-z]{2,10}){5,15}\\."
+    ) {
+        unsafe {
+            let processor = ai_processor_create();
+            prop_assert!(!processor.is_null(), "Processor should be created");
+
+            // Create 3 pages with similar content (same base text)
+            let pages: Vec<PageContentInput> = (0..3).map(|i| {
+                PageContentInput {
+                    html: format!("<html><body><p>{} - variation {}</p></body></html>", base_content, i),
+                    text: format!("{} - variation {}", base_content, i),
+                    title: format!("Page {}", i),
+                    description: Some(base_content.clone()),
+                    keywords: vec!["similar".to_string(), "content".to_string()],
+                    images: vec![],
+                    links: vec![],
+                }
+            }).collect();
+
+            // Convert to JSON array
+            let pages_json = serde_json::to_string(&pages).unwrap();
+            let pages_cstring = CString::new(pages_json).unwrap();
+
+            let mut groups_ptr: *mut CGroupSuggestion = ptr::null_mut();
+            let mut count: usize = 0;
+
+            let result = ai_processor_suggest_groups(
+                processor,
+                pages_cstring.as_ptr(),
+                &mut groups_ptr,
+                &mut count,
+            );
+
+            prop_assert_eq!(result, 0, "Group suggestion should succeed");
+
+            // With similar content, we should get at least one group
+            prop_assert!(count > 0, "Should suggest at least one group for similar content");
+
+            if count > 0 {
+                let groups = std::slice::from_raw_parts(groups_ptr, count);
+
+                // At least one group should contain multiple pages
+                let has_multi_page_group = groups.iter().any(|g| g.page_count >= 2);
+                prop_assert!(
+                    has_multi_page_group,
+                    "Similar content should be grouped together (found {} groups)",
+                    count
+                );
+            }
+
+            ai_processor_free_groups(groups_ptr, count);
+            ai_processor_destroy(processor);
+        }
+    }
+
+    /// Feature: web-page-manager, Property 2: AI内容分组一致性
+    /// Validates: Requirements 1.3
+    ///
+    /// Sub-property 2b: Grouping is deterministic
+    /// For any page collection, running the grouping algorithm twice should
+    /// produce the same results.
+    #[test]
+    fn prop_grouping_is_deterministic(pages in prop::collection::vec(arb_any_content(), 3..10)) {
+        unsafe {
+            let processor = ai_processor_create();
+            prop_assert!(!processor.is_null(), "Processor should be created");
+
+            let pages_json = serde_json::to_string(&pages).unwrap();
+            let pages_cstring = CString::new(pages_json).unwrap();
+
+            // First grouping
+            let mut groups_ptr1: *mut CGroupSuggestion = ptr::null_mut();
+            let mut count1: usize = 0;
+            ai_processor_suggest_groups(
+                processor,
+                pages_cstring.as_ptr(),
+                &mut groups_ptr1,
+                &mut count1,
+            );
+
+            // Second grouping
+            let mut groups_ptr2: *mut CGroupSuggestion = ptr::null_mut();
+            let mut count2: usize = 0;
+            ai_processor_suggest_groups(
+                processor,
+                pages_cstring.as_ptr(),
+                &mut groups_ptr2,
+                &mut count2,
+            );
+
+            // Count should be the same
+            prop_assert_eq!(
+                count1, count2,
+                "Grouping should be deterministic: count1={}, count2={}",
+                count1, count2
+            );
+
+            if count1 > 0 {
+                let groups1 = std::slice::from_raw_parts(groups_ptr1, count1);
+                let groups2 = std::slice::from_raw_parts(groups_ptr2, count2);
+
+                // Group types should match
+                for i in 0..count1 {
+                    prop_assert_eq!(
+                        groups1[i].group_type,
+                        groups2[i].group_type,
+                        "Group {} type should be deterministic",
+                        i
+                    );
+
+                    prop_assert_eq!(
+                        groups1[i].page_count,
+                        groups2[i].page_count,
+                        "Group {} page count should be deterministic",
+                        i
+                    );
+                }
+            }
+
+            ai_processor_free_groups(groups_ptr1, count1);
+            ai_processor_free_groups(groups_ptr2, count2);
+            ai_processor_destroy(processor);
+        }
+    }
+
+    /// Feature: web-page-manager, Property 2: AI内容分组一致性
+    /// Validates: Requirements 1.3
+    ///
+    /// Sub-property 2c: Domain-based grouping works correctly
+    /// Pages from the same domain should be grouped together when using domain grouping.
+    #[test]
+    fn prop_domain_based_grouping_works(domain in "[a-z]{3,10}") {
+        unsafe {
+            let processor = ai_processor_create();
+            prop_assert!(!processor.is_null(), "Processor should be created");
+
+            // Create pages from the same domain
+            let pages: Vec<PageContentInput> = (0..3).map(|i| {
+                PageContentInput {
+                    html: format!("<html><body>Page {}</body></html>", i),
+                    text: format!("Content for page {}", i),
+                    title: format!("Page {}", i),
+                    description: None,
+                    keywords: vec![],
+                    images: vec![],
+                    links: vec![format!("https://{}.com/page{}", domain, i)],
+                }
+            }).collect();
+
+            let pages_json = serde_json::to_string(&pages).unwrap();
+            let pages_cstring = CString::new(pages_json).unwrap();
+
+            let mut groups_ptr: *mut CGroupSuggestion = ptr::null_mut();
+            let mut count: usize = 0;
+
+            ai_processor_suggest_groups(
+                processor,
+                pages_cstring.as_ptr(),
+                &mut groups_ptr,
+                &mut count,
+            );
+
+            // Should suggest at least one group
+            prop_assert!(count > 0, "Should suggest groups for same-domain pages");
+
+            ai_processor_free_groups(groups_ptr, count);
+            ai_processor_destroy(processor);
+        }
+    }
+
+    /// Feature: web-page-manager, Property 2: AI内容分组一致性
+    /// Validates: Requirements 1.3
+    ///
+    /// Sub-property 2d: Group confidence scores are valid
+    /// All group confidence scores should be in the range [0.0, 1.0].
+    #[test]
+    fn prop_group_confidence_valid(pages in prop::collection::vec(arb_any_content(), 2..10)) {
+        unsafe {
+            let processor = ai_processor_create();
+            prop_assert!(!processor.is_null(), "Processor should be created");
+
+            let pages_json = serde_json::to_string(&pages).unwrap();
+            let pages_cstring = CString::new(pages_json).unwrap();
+
+            let mut groups_ptr: *mut CGroupSuggestion = ptr::null_mut();
+            let mut count: usize = 0;
+
+            ai_processor_suggest_groups(
+                processor,
+                pages_cstring.as_ptr(),
+                &mut groups_ptr,
+                &mut count,
+            );
+
+            if count > 0 {
+                let groups = std::slice::from_raw_parts(groups_ptr, count);
+
+                for (i, group) in groups.iter().enumerate() {
+                    prop_assert!(
+                        group.confidence >= 0.0 && group.confidence <= 1.0,
+                        "Group {} confidence {} should be in [0.0, 1.0]",
+                        i,
+                        group.confidence
+                    );
+                }
+            }
+
+            ai_processor_free_groups(groups_ptr, count);
+            ai_processor_destroy(processor);
+        }
+    }
+}
+
+// ============================================================================
+// Feature: web-page-manager, Property 3: 智能建议相关性 (Smart Suggestion Relevance)
+// Validates: Requirements 1.4
+//
+// Property: For any detected related tab collection, the system's merge, sort,
+// or migration suggestions should be based on content similarity and user behavior
+// patterns, and suggestions should be executable.
+// ============================================================================
+
+use ai_processor_ffi::{
+    ai_processor_calculate_similarity, ai_processor_recommend_related,
+    ai_processor_free_recommendations, CRecommendation,
+};
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(100))]
+
+    /// Feature: web-page-manager, Property 3: 智能建议相关性
+    /// Validates: Requirements 1.4
+    ///
+    /// Sub-property 3a: Similarity calculation is in valid range
+    /// For any two pages, the similarity score should be between 0.0 and 1.0.
+    #[test]
+    fn prop_similarity_in_valid_range(
+        content1 in arb_any_content(),
+        content2 in arb_any_content()
+    ) {
+        unsafe {
+            let processor = ai_processor_create();
+            prop_assert!(!processor.is_null(), "Processor should be created");
+
+            let json1 = content_to_json(&content1);
+            let json2 = content_to_json(&content2);
+
+            let similarity = ai_processor_calculate_similarity(
+                processor,
+                json1.as_ptr(),
+                json2.as_ptr(),
+            );
+
+            prop_assert!(
+                similarity >= 0.0 && similarity <= 1.0,
+                "Similarity {} should be in range [0.0, 1.0]",
+                similarity
+            );
+
+            ai_processor_destroy(processor);
+        }
+    }
+
+    /// Feature: web-page-manager, Property 3: 智能建议相关性
+    /// Validates: Requirements 1.4
+    ///
+    /// Sub-property 3b: Identical content has high similarity
+    /// For identical content, similarity should be close to 1.0.
+    #[test]
+    fn prop_identical_content_high_similarity(content in arb_any_content()) {
+        unsafe {
+            let processor = ai_processor_create();
+            prop_assert!(!processor.is_null(), "Processor should be created");
+
+            let json = content_to_json(&content);
+
+            let similarity = ai_processor_calculate_similarity(
+                processor,
+                json.as_ptr(),
+                json.as_ptr(),
+            );
+
+            prop_assert!(
+                similarity >= 0.9,
+                "Identical content similarity {} should be >= 0.9",
+                similarity
+            );
+
+            ai_processor_destroy(processor);
+        }
+    }
+
+    /// Feature: web-page-manager, Property 3: 智能建议相关性
+    /// Validates: Requirements 1.4
+    ///
+    /// Sub-property 3c: Similarity is symmetric
+    /// For any two pages A and B, similarity(A, B) should equal similarity(B, A).
+    #[test]
+    fn prop_similarity_symmetric(
+        content1 in arb_any_content(),
+        content2 in arb_any_content()
+    ) {
+        unsafe {
+            let processor = ai_processor_create();
+            prop_assert!(!processor.is_null(), "Processor should be created");
+
+            let json1 = content_to_json(&content1);
+            let json2 = content_to_json(&content2);
+
+            let sim_ab = ai_processor_calculate_similarity(
+                processor,
+                json1.as_ptr(),
+                json2.as_ptr(),
+            );
+
+            let sim_ba = ai_processor_calculate_similarity(
+                processor,
+                json2.as_ptr(),
+                json1.as_ptr(),
+            );
+
+            // Allow small floating point differences
+            let diff = (sim_ab - sim_ba).abs();
+            prop_assert!(
+                diff < 0.01,
+                "Similarity should be symmetric: sim(A,B)={}, sim(B,A)={}, diff={}",
+                sim_ab, sim_ba, diff
+            );
+
+            ai_processor_destroy(processor);
+        }
+    }
+
+    /// Feature: web-page-manager, Property 3: 智能建议相关性
+    /// Validates: Requirements 1.4
+    ///
+    /// Sub-property 3d: Related content recommendations have valid scores
+    /// All recommendation scores should be in the range [0.0, 1.0].
+    #[test]
+    fn prop_recommendation_scores_valid(
+        target in arb_any_content(),
+        candidates in prop::collection::vec(arb_any_content(), 2..10)
+    ) {
+        unsafe {
+            let processor = ai_processor_create();
+            prop_assert!(!processor.is_null(), "Processor should be created");
+
+            let target_json = content_to_json(&target);
+            let candidates_json = serde_json::to_string(&candidates).unwrap();
+            let candidates_cstring = CString::new(candidates_json).unwrap();
+
+            let mut recs_ptr: *mut CRecommendation = ptr::null_mut();
+            let mut count: usize = 0;
+
+            let result = ai_processor_recommend_related(
+                processor,
+                target_json.as_ptr(),
+                candidates_cstring.as_ptr(),
+                &mut recs_ptr,
+                &mut count,
+            );
+
+            prop_assert_eq!(result, 0, "Recommendation should succeed");
+
+            if count > 0 {
+                let recs = std::slice::from_raw_parts(recs_ptr, count);
+
+                for (i, rec) in recs.iter().enumerate() {
+                    prop_assert!(
+                        rec.relevance_score >= 0.0 && rec.relevance_score <= 1.0,
+                        "Recommendation {} score {} should be in [0.0, 1.0]",
+                        i,
+                        rec.relevance_score
+                    );
+                }
+            }
+
+            ai_processor_free_recommendations(recs_ptr, count);
+            ai_processor_destroy(processor);
+        }
+    }
+
+    /// Feature: web-page-manager, Property 3: 智能建议相关性
+    /// Validates: Requirements 1.4
+    ///
+    /// Sub-property 3e: Recommendations are sorted by relevance
+    /// Recommendations should be returned in descending order of relevance score.
+    #[test]
+    fn prop_recommendations_sorted_by_relevance(
+        target in arb_any_content(),
+        candidates in prop::collection::vec(arb_any_content(), 3..10)
+    ) {
+        unsafe {
+            let processor = ai_processor_create();
+            prop_assert!(!processor.is_null(), "Processor should be created");
+
+            let target_json = content_to_json(&target);
+            let candidates_json = serde_json::to_string(&candidates).unwrap();
+            let candidates_cstring = CString::new(candidates_json).unwrap();
+
+            let mut recs_ptr: *mut CRecommendation = ptr::null_mut();
+            let mut count: usize = 0;
+
+            ai_processor_recommend_related(
+                processor,
+                target_json.as_ptr(),
+                candidates_cstring.as_ptr(),
+                &mut recs_ptr,
+                &mut count,
+            );
+
+            if count > 1 {
+                let recs = std::slice::from_raw_parts(recs_ptr, count);
+
+                // Check that scores are in descending order
+                for i in 0..count-1 {
+                    prop_assert!(
+                        recs[i].relevance_score >= recs[i+1].relevance_score,
+                        "Recommendations should be sorted: recs[{}]={} >= recs[{}]={}",
+                        i, recs[i].relevance_score,
+                        i+1, recs[i+1].relevance_score
+                    );
+                }
+            }
+
+            ai_processor_free_recommendations(recs_ptr, count);
+            ai_processor_destroy(processor);
+        }
+    }
+}

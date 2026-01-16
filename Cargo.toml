@@ -2,10 +2,11 @@
 members = [
     "core",
     "ui-manager",
-    "browser-connector", 
+    "browser-connector",
     "ai-processor-ffi",
     "data-access",
-    "page-manager"
+    "page-manager",
+    "integration"
 ]
 resolver = "2"
 

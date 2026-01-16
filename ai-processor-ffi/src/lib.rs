@@ -850,6 +850,152 @@ pub extern "C" fn ai_processor_free_cross_recommendations(recommendations: *mut 
     }
 }
 
+/// Recommend related pages from candidates
+#[no_mangle]
+pub extern "C" fn ai_processor_recommend_related(
+    processor: *mut CAIProcessor,
+    target_content_json: *const c_char,
+    candidates_json: *const c_char,
+    recommendations: *mut *mut CCrossRecommendation,
+    count: *mut usize,
+) -> i32 {
+    if processor.is_null() || target_content_json.is_null() || candidates_json.is_null() || recommendations.is_null() || count.is_null() {
+        return -1;
+    }
+
+    unsafe {
+        *recommendations = ptr::null_mut();
+        *count = 0;
+
+        let target_json_str = match CStr::from_ptr(target_content_json).to_str() {
+            Ok(s) => s,
+            Err(_) => return -1,
+        };
+
+        let candidates_json_str = match CStr::from_ptr(candidates_json).to_str() {
+            Ok(s) => s,
+            Err(_) => return -1,
+        };
+
+        // Parse target content
+        let target: PageContentInput = match serde_json::from_str(target_json_str) {
+            Ok(c) => c,
+            Err(_) => return -1,
+        };
+
+        // Parse candidates
+        let candidates: Vec<PageContentInput> = match serde_json::from_str(candidates_json_str) {
+            Ok(c) => c,
+            Err(_) => return -1,
+        };
+
+        if candidates.is_empty() {
+            return 0;
+        }
+
+        // Calculate similarity for each candidate
+        let mut scores: Vec<(usize, f32)> = candidates.iter().enumerate().map(|(i, candidate)| {
+            // Simple similarity based on shared keywords and text overlap
+            let target_words: std::collections::HashSet<String> = target.text
+                .to_lowercase()
+                .split_whitespace()
+                .filter(|w| !STOP_WORDS.contains(&w.to_lowercase().as_str()))
+                .map(|s| s.to_string())
+                .collect();
+
+            let candidate_words: std::collections::HashSet<String> = candidate.text
+                .to_lowercase()
+                .split_whitespace()
+                .filter(|w| !STOP_WORDS.contains(&w.to_lowercase().as_str()))
+                .map(|s| s.to_string())
+                .collect();
+
+            let intersection = target_words.intersection(&candidate_words).count();
+            let union = target_words.union(&candidate_words).count();
+
+            let similarity = if union > 0 {
+                intersection as f32 / union as f32
+            } else {
+                0.0
+            };
+
+            (i, similarity)
+        }).collect();
+
+        // Sort by similarity (descending)
+        scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+
+        // Filter out very low scores (< 0.1)
+        scores.retain(|(_, score)| *score >= 0.1);
+
+        if scores.is_empty() {
+            return 0;
+        }
+
+        // Create recommendations
+        let mut recs = Vec::new();
+        for (idx, score) in scores {
+            let candidate = &candidates[idx];
+
+            recs.push(CCrossRecommendation {
+                source_id: match CString::new(target.title.clone()) {
+                    Ok(s) => s.into_raw(),
+                    Err(_) => ptr::null_mut(),
+                },
+                target_id: match CString::new(candidate.title.clone()) {
+                    Ok(s) => s.into_raw(),
+                    Err(_) => ptr::null_mut(),
+                },
+                relevance_score: score,
+                reason: CString::new("Content similarity").unwrap().into_raw(),
+                common_topics: ptr::null_mut(),
+                common_topics_count: 0,
+            });
+        }
+
+        *count = recs.len();
+        *recommendations = Box::into_raw(recs.into_boxed_slice()) as *mut CCrossRecommendation;
+
+        0
+    }
+}
+
+/// Free recommendations array
+#[no_mangle]
+pub extern "C" fn ai_processor_free_recommendations(recommendations: *mut CCrossRecommendation, count: usize) {
+    if !recommendations.is_null() && count > 0 {
+        unsafe {
+            let recs_slice = std::slice::from_raw_parts_mut(recommendations, count);
+            for rec in recs_slice {
+                if !rec.source_id.is_null() {
+                    let _ = CString::from_raw(rec.source_id);
+                }
+                if !rec.target_id.is_null() {
+                    let _ = CString::from_raw(rec.target_id);
+                }
+                if !rec.reason.is_null() {
+                    let _ = CString::from_raw(rec.reason);
+                }
+                if !rec.common_topics.is_null() && rec.common_topics_count > 0 {
+                    let topics_slice = std::slice::from_raw_parts_mut(rec.common_topics, rec.common_topics_count);
+                    for topic in topics_slice {
+                        if !topic.is_null() {
+                            let _ = CString::from_raw(*topic);
+                        }
+                    }
+                    let _ = Box::from_raw(rec.common_topics);
+                }
+            }
+            let _ = Box::from_raw(std::slice::from_raw_parts_mut(recommendations, count) as *mut [CCrossRecommendation]);
+        }
+    }
+}
+
+/// Rename ai_processor_suggest_groups to ai_processor_free_groups
+#[no_mangle]
+pub extern "C" fn ai_processor_free_groups(groups: *mut CGroupSuggestion, count: usize) {
+    ai_processor_free_group_suggestions(groups, count);
+}
 
 // ============================================================================
 // Internal helper functions for AI processing

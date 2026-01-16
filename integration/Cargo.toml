@@ -1,0 +1,40 @@
+[package]
+name = "integration"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# Workspace dependencies
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+# Internal packages
+web-page-manager-core = { path = "../core" }
+browser-connector = { path = "../browser-connector" }
+ai-processor-ffi = { path = "../ai-processor-ffi" }
+data-access = { path = "../data-access" }
+page-manager = { path = "../page-manager" }
+ui-manager = { path = "../ui-manager" }
+
+# Additional dependencies for integration
+async-trait = "0.1"
+futures = "0.3"
+
+[dev-dependencies]
+proptest = "1.0"
+mockall = "0.12"
+tempfile = "3.0"
+
+[features]
+default = ["flutter-ui"]
+flutter-ui = ["ui-manager/flutter-ui"]
+winui-ui = ["ui-manager/winui-ui"]
+gtk-ui = ["ui-manager/gtk-ui"]
+qt-ui = ["ui-manager/qt-ui"]
