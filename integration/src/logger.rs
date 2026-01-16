@@ -1,6 +1,6 @@
 /// Unified logger for centralized logging configuration
 
-use tracing_subscriber::{fmt, EnvFilter, prelude::*};
+use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 use std::path::PathBuf;
 
 /// Logger configuration

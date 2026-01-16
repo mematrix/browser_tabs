@@ -17,11 +17,8 @@ pub struct Application {
 impl Application {
     /// Create and initialize a new application
     pub async fn new(config: AppConfig) -> Result<Self> {
-        // Initialize logging
-        UnifiedLogger::init_default()
-            .map_err(|e| web_page_manager_core::errors::SystemError::Configuration {
-                details: e.to_string()
-            })?;
+        // Initialize logging (ignore error if already initialized)
+        let _ = UnifiedLogger::init_default();
 
         info!("Starting Webpage Manager Application");
 
@@ -29,10 +26,12 @@ impl Application {
         let context = Arc::new(AppContext::new(config).await?);
 
         // Auto-connect to browsers if enabled
-        let config_guard = context.config.read().await;
-        if config_guard.auto_connect_browsers {
-            drop(config_guard);
-            context.connect_browsers().await;
+        {
+            let config_guard = context.config.read().await;
+            if config_guard.auto_connect_browsers {
+                drop(config_guard);
+                context.connect_browsers().await;
+            }
         }
 
         info!("Application initialized successfully");

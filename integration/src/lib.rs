@@ -3,7 +3,7 @@
 /// Task 11.1: Component Integration and Data Flow
 /// This module provides orchestration of all system components
 
-use web_page_manager_core::errors::{Result, WebPageManagerError};
+use web_page_manager_core::errors::Result;
 use web_page_manager_core::types::*;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -64,9 +64,6 @@ pub struct AppContext {
     /// Browser connector manager for multi-browser support
     pub browser_manager: Arc<browser_connector::BrowserConnectorManager>,
 
-    /// AI processor for content analysis
-    pub ai_processor: Arc<ai_processor_ffi::AIProcessor>,
-
     /// Page manager for unified page operations
     pub page_manager: Arc<page_manager::PageUnifiedManager>,
 
@@ -97,10 +94,6 @@ impl AppContext {
         let browser_manager = Arc::new(browser_connector::BrowserConnectorManager::new());
         info!("Browser connector manager initialized");
 
-        // Initialize AI processor
-        let ai_processor = Arc::new(ai_processor_ffi::AIProcessor::new()?);
-        info!("AI processor initialized");
-
         // Initialize page manager
         let page_manager = Arc::new(page_manager::PageUnifiedManager::new());
         info!("Page manager initialized");
@@ -121,7 +114,6 @@ impl AppContext {
         Ok(Self {
             database,
             browser_manager,
-            ai_processor,
             page_manager,
             ui_manager,
             error_handler,

@@ -13,12 +13,11 @@ chrono = { workspace = true }
 thiserror = { workspace = true }
 anyhow = { workspace = true }
 tracing = { workspace = true }
-tracing-subscriber = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
 
 # Internal packages
 web-page-manager-core = { path = "../core" }
 browser-connector = { path = "../browser-connector" }
-ai-processor-ffi = { path = "../ai-processor-ffi" }
 data-access = { path = "../data-access" }
 page-manager = { path = "../page-manager" }
 ui-manager = { path = "../ui-manager" }

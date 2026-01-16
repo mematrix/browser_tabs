@@ -84,16 +84,16 @@ impl UnifiedErrorHandler {
         use WebPageManagerError::*;
 
         match error {
-            BrowserConnectionError(_) => ErrorSeverity::Warning,
-            AIProcessingError(_) => ErrorSeverity::Error,
-            DataConsistency(_) => ErrorSeverity::Critical,
-            PerformanceError(_) => ErrorSeverity::Warning,
-            UIError(_) => ErrorSeverity::Error,
-            SystemError(_) => ErrorSeverity::Critical,
-            BookmarkAnalysis(_) => ErrorSeverity::Warning,
-            HistoryError(_) => ErrorSeverity::Error,
-            CrossBrowserError(_) => ErrorSeverity::Warning,
-            ArchiveError(_) => ErrorSeverity::Warning,
+            BrowserConnection { .. } => ErrorSeverity::Warning,
+            AIProcessing { .. } => ErrorSeverity::Error,
+            DataConsistency { .. } => ErrorSeverity::Critical,
+            Performance { .. } => ErrorSeverity::Warning,
+            UI { .. } => ErrorSeverity::Error,
+            System { .. } => ErrorSeverity::Critical,
+            BookmarkAnalysis { .. } => ErrorSeverity::Warning,
+            History { .. } => ErrorSeverity::Error,
+            CrossBrowser { .. } => ErrorSeverity::Warning,
+            Archive { .. } => ErrorSeverity::Warning,
         }
     }
 
@@ -175,9 +175,11 @@ mod tests {
     #[tokio::test]
     async fn test_handle_error() {
         let handler = UnifiedErrorHandler::new();
-        let error = WebPageManagerError::BrowserConnectionError(
-            BrowserConnectionError::ConnectionFailed("test".to_string())
-        );
+        let error = WebPageManagerError::BrowserConnection {
+            source: BrowserConnectionError::ConnectionTimeout {
+                browser: web_page_manager_core::types::BrowserType::Chrome
+            }
+        };
 
         handler.handle_error(&error, "test_context").await;
 
