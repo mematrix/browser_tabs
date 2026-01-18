@@ -6,7 +6,7 @@ import '../models/page_info.dart';
 class BrowserFilterChips extends StatelessWidget {
   final BrowserType? selectedBrowser;
   final ValueChanged<BrowserType?> onBrowserSelected;
-  
+
   const BrowserFilterChips({
     super.key,
     required this.selectedBrowser,
@@ -56,7 +56,7 @@ class BrowserFilterChips extends StatelessWidget {
       ),
     );
   }
-  
+
   Widget _buildBrowserChip(
     BuildContext context,
     BrowserType browser,

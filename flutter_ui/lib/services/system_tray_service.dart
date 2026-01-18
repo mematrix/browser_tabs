@@ -16,12 +16,12 @@ abstract class TrayMenuItem {
       checked: checked,
     );
   }
-  
+
   /// Create a separator
   static TrayMenuSeparator separator() {
     return const TrayMenuSeparator();
   }
-  
+
   /// Create a submenu
   static TrayMenuSubmenu submenu({
     required String id,
@@ -42,7 +42,7 @@ class TrayMenuItemLabel implements TrayMenuItem {
   final String label;
   final bool enabled;
   final bool? checked;
-  
+
   const TrayMenuItemLabel({
     required this.id,
     required this.label,
@@ -61,7 +61,7 @@ class TrayMenuSubmenu implements TrayMenuItem {
   final String id;
   final String label;
   final List<TrayMenuItem> items;
-  
+
   const TrayMenuSubmenu({
     required this.id,
     required this.label,
@@ -81,7 +81,7 @@ enum TrayEventType {
 class TrayEvent {
   final TrayEventType type;
   final String? menuItemId;
-  
+
   const TrayEvent({
     required this.type,
     this.menuItemId,
@@ -92,7 +92,7 @@ class TrayEvent {
 typedef TrayEventCallback = void Function(TrayEvent event);
 
 /// Service for managing system tray functionality
-/// 
+///
 /// This service provides cross-platform system tray support for
 /// Windows, Linux, and macOS. It integrates with the Rust backend
 /// for actual tray management.
@@ -101,22 +101,22 @@ class SystemTrayService {
   String _tooltip = 'Web Page Manager - 点击打开';
   List<TrayMenuItem> _menuItems = [];
   TrayEventCallback? _eventCallback;
-  
+
   /// Initialize the system tray service
   Future<void> initialize() async {
     if (!Platform.isWindows && !Platform.isLinux && !Platform.isMacOS) {
       return;
     }
-    
+
     // Set up default menu
     _menuItems = _getDefaultMenu();
-    
+
     // TODO: Initialize via Rust backend
     // This would call CrossPlatformTrayManager.initialize()
-    
+
     _initialized = true;
   }
-  
+
   /// Get the default context menu
   List<TrayMenuItem> _getDefaultMenu() {
     return [
@@ -130,25 +130,25 @@ class SystemTrayService {
       TrayMenuItem.item(id: 'exit', label: '退出'),
     ];
   }
-  
+
   /// Set the context menu items
   Future<void> setMenu(List<TrayMenuItem> items) async {
     if (!_initialized) return;
-    
+
     _menuItems = items;
-    
+
     // TODO: Call Rust backend to update menu
   }
-  
+
   /// Update the tooltip text
   Future<void> setTooltip(String tooltip) async {
     if (!_initialized) return;
-    
+
     _tooltip = tooltip;
-    
+
     // TODO: Call Rust backend to update tooltip
   }
-  
+
   /// Update tooltip with activity count
   Future<void> setActivityBadge(int count) async {
     final tooltip = count > 0
@@ -156,51 +156,51 @@ class SystemTrayService {
         : 'Web Page Manager - 点击打开';
     await setTooltip(tooltip);
   }
-  
+
   /// Set the event callback
   void setEventCallback(TrayEventCallback callback) {
     _eventCallback = callback;
   }
-  
+
   /// Handle a tray event from the Rust backend
   void handleTrayEvent(TrayEvent event) {
     _eventCallback?.call(event);
   }
-  
+
   /// Show the tray icon
   Future<void> show() async {
     if (!_initialized) return;
-    
+
     // TODO: Call Rust backend to show tray
   }
-  
+
   /// Hide the tray icon
   Future<void> hide() async {
     if (!_initialized) return;
-    
+
     // TODO: Call Rust backend to hide tray
   }
-  
+
   /// Hide the main window to tray
   Future<void> hideToTray() async {
     // TODO: Call window manager to hide window
     // Then show tray icon
     await show();
   }
-  
+
   /// Restore from tray
   Future<void> restoreFromTray() async {
     // TODO: Call window manager to show window
   }
-  
+
   /// Get the current tooltip
   String get tooltip => _tooltip;
-  
+
   /// Get the current menu items
   List<TrayMenuItem> get menuItems => List.unmodifiable(_menuItems);
-  
+
   bool get isInitialized => _initialized;
-  
+
   /// Dispose the service
   Future<void> dispose() async {
     await hide();

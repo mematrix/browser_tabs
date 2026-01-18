@@ -19,13 +19,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
   BrowserType? _selectedBrowser;
   String _searchQuery = '';
   DateTimeRange? _dateRange;
-  
+
   @override
   Widget build(BuildContext context) {
     final pageProvider = context.watch<PageProvider>();
     final history = _filterHistory(pageProvider.history);
     final groupedHistory = _groupByDate(history);
-    
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('历史记录'),
@@ -37,7 +37,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.delete_sweep),
-            onPressed: history.isEmpty ? null : () => _showClearHistoryDialog(context),
+            onPressed:
+                history.isEmpty ? null : () => _showClearHistoryDialog(context),
             tooltip: '清除历史',
           ),
           IconButton(
@@ -92,7 +93,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
               ],
             ),
           ),
-          
+
           // History count
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -106,7 +107,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
             ),
           ),
           const SizedBox(height: 8),
-          
+
           // History list grouped by date
           Expanded(
             child: pageProvider.isLoading
@@ -126,51 +127,56 @@ class _HistoryScreenState extends State<HistoryScreen> {
       ),
     );
   }
-  
+
   List<UnifiedPageInfo> _filterHistory(List<UnifiedPageInfo> history) {
     var filtered = history;
-    
+
     // Filter by browser
     if (_selectedBrowser != null) {
-      filtered = filtered.where((h) => h.browserType == _selectedBrowser).toList();
+      filtered =
+          filtered.where((h) => h.browserType == _selectedBrowser).toList();
     }
-    
+
     // Filter by date range
     if (_dateRange != null) {
-      filtered = filtered.where((h) =>
-        h.lastAccessed.isAfter(_dateRange!.start) &&
-        h.lastAccessed.isBefore(_dateRange!.end.add(const Duration(days: 1)))
-      ).toList();
+      filtered = filtered
+          .where((h) =>
+              h.lastAccessed.isAfter(_dateRange!.start) &&
+              h.lastAccessed
+                  .isBefore(_dateRange!.end.add(const Duration(days: 1))))
+          .toList();
     }
-    
+
     // Filter by search query
     if (_searchQuery.isNotEmpty) {
       final query = _searchQuery.toLowerCase();
-      filtered = filtered.where((h) =>
-        h.title.toLowerCase().contains(query) ||
-        h.url.toLowerCase().contains(query)
-      ).toList();
+      filtered = filtered
+          .where((h) =>
+              h.title.toLowerCase().contains(query) ||
+              h.url.toLowerCase().contains(query))
+          .toList();
     }
-    
+
     // Sort by last accessed (most recent first)
     filtered.sort((a, b) => b.lastAccessed.compareTo(a.lastAccessed));
-    
+
     return filtered;
   }
-  
-  Map<String, List<UnifiedPageInfo>> _groupByDate(List<UnifiedPageInfo> history) {
+
+  Map<String, List<UnifiedPageInfo>> _groupByDate(
+      List<UnifiedPageInfo> history) {
     final grouped = <String, List<UnifiedPageInfo>>{};
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final yesterday = today.subtract(const Duration(days: 1));
-    
+
     for (final item in history) {
       final itemDate = DateTime(
         item.lastAccessed.year,
         item.lastAccessed.month,
         item.lastAccessed.day,
       );
-      
+
       String key;
       if (itemDate == today) {
         key = '今天';
@@ -181,13 +187,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
       } else {
         key = DateFormat('yyyy年M月d日').format(item.lastAccessed);
       }
-      
+
       grouped.putIfAbsent(key, () => []).add(item);
     }
-    
+
     return grouped;
   }
-  
+
   Widget _buildDateGroup(String date, List<UnifiedPageInfo> items) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -197,28 +203,28 @@ class _HistoryScreenState extends State<HistoryScreen> {
           child: Text(
             date,
             style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              color: Theme.of(context).colorScheme.primary,
-            ),
+                  color: Theme.of(context).colorScheme.primary,
+                ),
           ),
         ),
         ...items.map((item) => Card(
-          margin: const EdgeInsets.only(bottom: 8),
-          child: PageListTile(
-            page: item,
-            onTap: () => _restoreTab(item),
-            showTime: true,
-            trailing: IconButton(
-              icon: const Icon(Icons.restore),
-              onPressed: () => _restoreTab(item),
-              tooltip: '恢复标签页',
-            ),
-          ),
-        )),
+              margin: const EdgeInsets.only(bottom: 8),
+              child: PageListTile(
+                page: item,
+                onTap: () => _restoreTab(item),
+                showTime: true,
+                trailing: IconButton(
+                  icon: const Icon(Icons.restore),
+                  onPressed: () => _restoreTab(item),
+                  tooltip: '恢复标签页',
+                ),
+              ),
+            )),
         const SizedBox(height: 8),
       ],
     );
   }
-  
+
   Widget _buildEmptyState() {
     return Center(
       child: Column(
@@ -233,14 +239,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
           Text(
             '暂无历史记录',
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              color: Theme.of(context).colorScheme.outline,
-            ),
+                  color: Theme.of(context).colorScheme.outline,
+                ),
           ),
         ],
       ),
     );
   }
-  
+
   Future<void> _selectDateRange(BuildContext context) async {
     final now = DateTime.now();
     final result = await showDateRangePicker(
@@ -249,19 +255,19 @@ class _HistoryScreenState extends State<HistoryScreen> {
       lastDate: now,
       initialDateRange: _dateRange,
     );
-    
+
     if (result != null) {
       setState(() {
         _dateRange = result;
       });
     }
   }
-  
+
   String _formatDateRange(DateTimeRange range) {
     final format = DateFormat('M/d');
     return '${format.format(range.start)} - ${format.format(range.end)}';
   }
-  
+
   Future<void> _showClearHistoryDialog(BuildContext context) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -281,12 +287,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
         ],
       ),
     );
-    
+
     if (confirmed == true) {
       // TODO: Clear history via provider
     }
   }
-  
+
   void _restoreTab(UnifiedPageInfo historyItem) {
     // TODO: Restore tab via provider
   }

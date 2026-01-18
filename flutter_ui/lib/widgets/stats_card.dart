@@ -7,7 +7,7 @@ class StatsCard extends StatelessWidget {
   final String value;
   final Color color;
   final VoidCallback? onTap;
-  
+
   const StatsCard({
     super.key,
     required this.icon,
@@ -34,15 +34,15 @@ class StatsCard extends StatelessWidget {
               Text(
                 value,
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+                      fontWeight: FontWeight.bold,
+                    ),
               ),
               const SizedBox(height: 4),
               Text(
                 label,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.outline,
-                ),
+                      color: Theme.of(context).colorScheme.outline,
+                    ),
               ),
             ],
           ),

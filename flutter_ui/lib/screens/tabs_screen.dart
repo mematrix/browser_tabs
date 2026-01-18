@@ -18,24 +18,23 @@ class _TabsScreenState extends State<TabsScreen> {
   BrowserType? _selectedBrowser;
   String _searchQuery = '';
   TabViewMode _viewMode = TabViewMode.list;
-  
+
   @override
   Widget build(BuildContext context) {
     final pageProvider = context.watch<PageProvider>();
     final tabs = _filterTabs(pageProvider.activeTabs);
-    
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('标签页'),
         actions: [
           IconButton(
-            icon: Icon(_viewMode == TabViewMode.list 
-                ? Icons.grid_view 
-                : Icons.list),
+            icon: Icon(
+                _viewMode == TabViewMode.list ? Icons.grid_view : Icons.list),
             onPressed: () {
               setState(() {
-                _viewMode = _viewMode == TabViewMode.list 
-                    ? TabViewMode.grid 
+                _viewMode = _viewMode == TabViewMode.list
+                    ? TabViewMode.grid
                     : TabViewMode.list;
               });
             },
@@ -78,7 +77,7 @@ class _TabsScreenState extends State<TabsScreen> {
               ],
             ),
           ),
-          
+
           // Tab count
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -91,14 +90,15 @@ class _TabsScreenState extends State<TabsScreen> {
                 ),
                 if (pageProvider.tabsWithPendingChanges.isNotEmpty)
                   Chip(
-                    label: Text('${pageProvider.tabsWithPendingChanges.length} 个待同步'),
+                    label: Text(
+                        '${pageProvider.tabsWithPendingChanges.length} 个待同步'),
                     backgroundColor: Colors.orange.shade100,
                   ),
               ],
             ),
           ),
           const SizedBox(height: 8),
-          
+
           // Tab list
           Expanded(
             child: pageProvider.isLoading
@@ -120,25 +120,27 @@ class _TabsScreenState extends State<TabsScreen> {
       ),
     );
   }
-  
+
   List<UnifiedPageInfo> _filterTabs(List<UnifiedPageInfo> tabs) {
     var filtered = tabs;
-    
+
     if (_selectedBrowser != null) {
-      filtered = filtered.where((t) => t.browserType == _selectedBrowser).toList();
+      filtered =
+          filtered.where((t) => t.browserType == _selectedBrowser).toList();
     }
-    
+
     if (_searchQuery.isNotEmpty) {
       final query = _searchQuery.toLowerCase();
-      filtered = filtered.where((t) =>
-        t.title.toLowerCase().contains(query) ||
-        t.url.toLowerCase().contains(query)
-      ).toList();
+      filtered = filtered
+          .where((t) =>
+              t.title.toLowerCase().contains(query) ||
+              t.url.toLowerCase().contains(query))
+          .toList();
     }
-    
+
     return filtered;
   }
-  
+
   Widget _buildListView(List<UnifiedPageInfo> tabs, PageProvider provider) {
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -151,13 +153,15 @@ class _TabsScreenState extends State<TabsScreen> {
             page: tab,
             onTap: () => provider.activateTab(tab),
             onClose: () => provider.closeTab(tab),
-            onBookmark: tab.hasBookmark ? null : () => provider.createBookmarkFromTab(tab),
+            onBookmark: tab.hasBookmark
+                ? null
+                : () => provider.createBookmarkFromTab(tab),
           ),
         );
       },
     );
   }
-  
+
   Widget _buildGridView(List<UnifiedPageInfo> tabs, PageProvider provider) {
     return GridView.builder(
       padding: const EdgeInsets.all(16),
@@ -174,7 +178,7 @@ class _TabsScreenState extends State<TabsScreen> {
       },
     );
   }
-  
+
   Widget _buildGridCard(UnifiedPageInfo tab, PageProvider provider) {
     return Card(
       clipBehavior: Clip.antiAlias,
@@ -194,7 +198,8 @@ class _TabsScreenState extends State<TabsScreen> {
                       tab.faviconUrl!,
                       width: 16,
                       height: 16,
-                      errorBuilder: (_, __, ___) => const Icon(Icons.web, size: 16),
+                      errorBuilder: (_, __, ___) =>
+                          const Icon(Icons.web, size: 16),
                     )
                   else
                     const Icon(Icons.web, size: 16),
@@ -249,11 +254,11 @@ class _TabsScreenState extends State<TabsScreen> {
       ),
     );
   }
-  
+
   Widget _buildBrowserIcon(BrowserType? browser) {
     IconData icon;
     Color color;
-    
+
     switch (browser) {
       case BrowserType.chrome:
         icon = Icons.circle;
@@ -275,7 +280,7 @@ class _TabsScreenState extends State<TabsScreen> {
         icon = Icons.circle;
         color = Colors.grey;
     }
-    
+
     return Icon(icon, size: 12, color: color);
   }
 }

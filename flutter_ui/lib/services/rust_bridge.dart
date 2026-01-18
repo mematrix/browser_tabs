@@ -1,7 +1,3 @@
-import 'dart:convert';
-import 'dart:ffi';
-import 'dart:io';
-
 import '../models/page_info.dart';
 import '../models/smart_group.dart';
 import '../models/search_result.dart';
@@ -9,10 +5,10 @@ import '../models/search_result.dart';
 /// Bridge to Rust core library via FFI
 class RustBridge {
   bool _initialized = false;
-  
+
   // In a real implementation, this would load the Rust dynamic library
   // and call FFI functions. For now, we provide mock data for UI development.
-  
+
   Future<void> initialize() async {
     // TODO: Load Rust dynamic library
     // final dylib = Platform.isWindows
@@ -20,45 +16,50 @@ class RustBridge {
     //     : Platform.isMacOS
     //         ? DynamicLibrary.open('libweb_page_manager_core.dylib')
     //         : DynamicLibrary.open('libweb_page_manager_core.so');
-    
+
     _initialized = true;
   }
-  
+
   bool get isInitialized => _initialized;
-  
+
   /// Get all unified pages (tabs + bookmarks)
   Future<List<UnifiedPageInfo>> getUnifiedPages() async {
     // TODO: Call Rust FFI function
     // For now, return mock data for UI development
     return _getMockPages();
   }
-  
+
   /// Get all smart groups
   Future<List<SmartGroup>> getSmartGroups() async {
     // TODO: Call Rust FFI function
     return _getMockGroups();
   }
-  
+
   /// Get active tabs from all browsers
   Future<List<UnifiedPageInfo>> getActiveTabs() async {
     final pages = await getUnifiedPages();
-    return pages.where((p) => p.sourceType == PageSourceType.activeTab).toList();
+    return pages
+        .where((p) => p.sourceType == PageSourceType.activeTab)
+        .toList();
   }
-  
+
   /// Get all bookmarks
   Future<List<UnifiedPageInfo>> getBookmarks() async {
     final pages = await getUnifiedPages();
     return pages.where((p) => p.sourceType == PageSourceType.bookmark).toList();
   }
-  
+
   /// Get tab history
   Future<List<UnifiedPageInfo>> getHistory() async {
     final pages = await getUnifiedPages();
-    return pages.where((p) => p.sourceType == PageSourceType.closedTab).toList();
+    return pages
+        .where((p) => p.sourceType == PageSourceType.closedTab)
+        .toList();
   }
-  
+
   /// Search across all data sources
-  Future<SearchResults> search(String query, {
+  Future<SearchResults> search(
+    String query, {
     List<SearchResultSource>? sources,
     BrowserType? browserType,
     int limit = 50,
@@ -68,30 +69,33 @@ class RustBridge {
     if (query.isEmpty) {
       return SearchResults.empty();
     }
-    
+
     final pages = await getUnifiedPages();
     final queryLower = query.toLowerCase();
-    
-    final matchingPages = pages.where((p) =>
-      p.title.toLowerCase().contains(queryLower) ||
-      p.url.toLowerCase().contains(queryLower) ||
-      p.keywords.any((k) => k.toLowerCase().contains(queryLower))
-    ).toList();
-    
-    final items = matchingPages.map((p) => SearchResultItem(
-      id: p.id,
-      url: p.url,
-      title: p.title,
-      source: _pageSourceToSearchSource(p.sourceType),
-      browserType: p.browserType,
-      relevanceScore: _calculateRelevance(p, queryLower),
-      snippet: p.contentSummary?.summaryText,
-      keywords: p.keywords,
-      lastAccessed: p.lastAccessed,
-    )).toList();
-    
+
+    final matchingPages = pages
+        .where((p) =>
+            p.title.toLowerCase().contains(queryLower) ||
+            p.url.toLowerCase().contains(queryLower) ||
+            p.keywords.any((k) => k.toLowerCase().contains(queryLower)))
+        .toList();
+
+    final items = matchingPages
+        .map((p) => SearchResultItem(
+              id: p.id,
+              url: p.url,
+              title: p.title,
+              source: _pageSourceToSearchSource(p.sourceType),
+              browserType: p.browserType,
+              relevanceScore: _calculateRelevance(p, queryLower),
+              snippet: p.contentSummary?.summaryText,
+              keywords: p.keywords,
+              lastAccessed: p.lastAccessed,
+            ))
+        .toList();
+
     items.sort((a, b) => b.relevanceScore.compareTo(a.relevanceScore));
-    
+
     return SearchResults(
       totalCount: items.length,
       items: items.skip(offset).take(limit).toList(),
@@ -99,44 +103,44 @@ class RustBridge {
       countBySource: _countBySource(items),
     );
   }
-  
+
   /// Get search suggestions
   Future<List<SearchSuggestion>> getSuggestions(String query) async {
     if (query.isEmpty) return [];
-    
+
     // TODO: Call Rust FFI function
     return [
       SearchSuggestion(text: query, type: 'History', score: 1.0),
     ];
   }
-  
+
   /// Close a tab
   Future<void> closeTab(String tabId, BrowserType browser) async {
     // TODO: Call Rust FFI function
   }
-  
+
   /// Activate a tab
   Future<void> activateTab(String tabId, BrowserType browser) async {
     // TODO: Call Rust FFI function
   }
-  
+
   /// Create a new tab
   Future<String> createTab(String url, BrowserType browser) async {
     // TODO: Call Rust FFI function
     return 'new-tab-id';
   }
-  
+
   /// Create bookmark from tab
   Future<void> createBookmarkFromTab(String tabId) async {
     // TODO: Call Rust FFI function
   }
-  
+
   /// Get connected browser count
   Future<int> getConnectedBrowserCount() async {
     // TODO: Call Rust FFI function
     return 2;
   }
-  
+
   SearchResultSource _pageSourceToSearchSource(PageSourceType source) {
     switch (source) {
       case PageSourceType.activeTab:
@@ -149,7 +153,7 @@ class RustBridge {
         return SearchResultSource.archive;
     }
   }
-  
+
   double _calculateRelevance(UnifiedPageInfo page, String query) {
     double score = 0.0;
     if (page.title.toLowerCase().contains(query)) score += 0.5;
@@ -157,7 +161,7 @@ class RustBridge {
     if (page.keywords.any((k) => k.toLowerCase().contains(query))) score += 0.2;
     return score;
   }
-  
+
   Map<SearchResultSource, int> _countBySource(List<SearchResultItem> items) {
     final counts = <SearchResultSource, int>{};
     for (final item in items) {
@@ -165,7 +169,7 @@ class RustBridge {
     }
     return counts;
   }
-  
+
   List<UnifiedPageInfo> _getMockPages() {
     final now = DateTime.now();
     return [
@@ -224,7 +228,7 @@ class RustBridge {
       ),
     ];
   }
-  
+
   List<SmartGroup> _getMockGroups() {
     final now = DateTime.now();
     return [

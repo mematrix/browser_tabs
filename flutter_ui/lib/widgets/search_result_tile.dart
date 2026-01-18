@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 
-import '../models/page_info.dart';
 import '../models/search_result.dart';
 
 /// List tile widget for displaying search results
 class SearchResultTile extends StatelessWidget {
   final SearchResultItem result;
   final VoidCallback? onTap;
-  
+
   const SearchResultTile({
     super.key,
     required this.result,
@@ -28,7 +27,7 @@ class SearchResultTile extends StatelessWidget {
       onTap: onTap,
     );
   }
-  
+
   Widget _buildLeading(BuildContext context) {
     return Container(
       width: 40,
@@ -44,7 +43,7 @@ class SearchResultTile extends StatelessWidget {
       ),
     );
   }
-  
+
   Widget _buildSubtitle(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -62,8 +61,8 @@ class SearchResultTile extends StatelessWidget {
           Text(
             result.snippet!,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.outline,
-            ),
+                  color: Theme.of(context).colorScheme.outline,
+                ),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
@@ -74,23 +73,29 @@ class SearchResultTile extends StatelessWidget {
           Wrap(
             spacing: 4,
             runSpacing: 4,
-            children: result.keywords.take(3).map((keyword) => Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: Text(
-                keyword,
-                style: Theme.of(context).textTheme.labelSmall,
-              ),
-            )).toList(),
+            children: result.keywords
+                .take(3)
+                .map((keyword) => Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        keyword,
+                        style: Theme.of(context).textTheme.labelSmall,
+                      ),
+                    ))
+                .toList(),
           ),
         ],
       ],
     );
   }
-  
+
   Widget _buildTrailing(BuildContext context) {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -106,8 +111,8 @@ class SearchResultTile extends StatelessWidget {
           child: Text(
             _getSourceLabel(),
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: _getSourceColor(),
-            ),
+                  color: _getSourceColor(),
+                ),
           ),
         ),
         const SizedBox(height: 4),
@@ -115,13 +120,13 @@ class SearchResultTile extends StatelessWidget {
         Text(
           '${(result.relevanceScore * 100).toInt()}%',
           style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: Theme.of(context).colorScheme.outline,
-          ),
+                color: Theme.of(context).colorScheme.outline,
+              ),
         ),
       ],
     );
   }
-  
+
   IconData _getSourceIcon() {
     switch (result.source) {
       case SearchResultSource.activeTab:
@@ -136,7 +141,7 @@ class SearchResultTile extends StatelessWidget {
         return Icons.web;
     }
   }
-  
+
   Color _getSourceColor() {
     switch (result.source) {
       case SearchResultSource.activeTab:
@@ -151,7 +156,7 @@ class SearchResultTile extends StatelessWidget {
         return Colors.grey;
     }
   }
-  
+
   String _getSourceLabel() {
     switch (result.source) {
       case SearchResultSource.activeTab:

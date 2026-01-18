@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../models/page_info.dart';
 import '../models/search_result.dart';
 import '../providers/search_provider.dart';
 import '../widgets/search_result_tile.dart';
@@ -18,13 +17,13 @@ class SearchScreen extends StatefulWidget {
 class _SearchScreenState extends State<SearchScreen> {
   final _searchController = TextEditingController();
   final _focusNode = FocusNode();
-  
+
   @override
   void initState() {
     super.initState();
     _focusNode.requestFocus();
   }
-  
+
   @override
   void dispose() {
     _searchController.dispose();
@@ -35,7 +34,7 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   Widget build(BuildContext context) {
     final searchProvider = context.watch<SearchProvider>();
-    
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('搜索'),
@@ -71,17 +70,17 @@ class _SearchScreenState extends State<SearchScreen> {
                   },
                 ),
                 const SizedBox(height: 12),
-                
+
                 // Source filters
                 _buildSourceFilters(searchProvider),
                 const SizedBox(height: 8),
-                
+
                 // Sort options
                 _buildSortOptions(searchProvider),
               ],
             ),
           ),
-          
+
           // Suggestions or results
           Expanded(
             child: searchProvider.isSearching
@@ -94,7 +93,7 @@ class _SearchScreenState extends State<SearchScreen> {
       ),
     );
   }
-  
+
   Widget _buildSourceFilters(SearchProvider provider) {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -102,36 +101,44 @@ class _SearchScreenState extends State<SearchScreen> {
         children: [
           FilterChip(
             label: const Text('标签页'),
-            selected: provider.selectedSources.contains(SearchResultSource.activeTab),
-            onSelected: (_) => provider.toggleSource(SearchResultSource.activeTab),
+            selected:
+                provider.selectedSources.contains(SearchResultSource.activeTab),
+            onSelected: (_) =>
+                provider.toggleSource(SearchResultSource.activeTab),
             avatar: const Icon(Icons.tab, size: 16),
           ),
           const SizedBox(width: 8),
           FilterChip(
             label: const Text('书签'),
-            selected: provider.selectedSources.contains(SearchResultSource.bookmark),
-            onSelected: (_) => provider.toggleSource(SearchResultSource.bookmark),
+            selected:
+                provider.selectedSources.contains(SearchResultSource.bookmark),
+            onSelected: (_) =>
+                provider.toggleSource(SearchResultSource.bookmark),
             avatar: const Icon(Icons.bookmark, size: 16),
           ),
           const SizedBox(width: 8),
           FilterChip(
             label: const Text('历史'),
-            selected: provider.selectedSources.contains(SearchResultSource.history),
-            onSelected: (_) => provider.toggleSource(SearchResultSource.history),
+            selected:
+                provider.selectedSources.contains(SearchResultSource.history),
+            onSelected: (_) =>
+                provider.toggleSource(SearchResultSource.history),
             avatar: const Icon(Icons.history, size: 16),
           ),
           const SizedBox(width: 8),
           FilterChip(
             label: const Text('存档'),
-            selected: provider.selectedSources.contains(SearchResultSource.archive),
-            onSelected: (_) => provider.toggleSource(SearchResultSource.archive),
+            selected:
+                provider.selectedSources.contains(SearchResultSource.archive),
+            onSelected: (_) =>
+                provider.toggleSource(SearchResultSource.archive),
             avatar: const Icon(Icons.archive, size: 16),
           ),
         ],
       ),
     );
   }
-  
+
   Widget _buildSortOptions(SearchProvider provider) {
     return Row(
       children: [
@@ -139,10 +146,12 @@ class _SearchScreenState extends State<SearchScreen> {
         DropdownButton<SearchSortOrder>(
           value: provider.sortOrder,
           underline: const SizedBox(),
-          items: SearchSortOrder.values.map((order) => DropdownMenuItem(
-            value: order,
-            child: Text(order.displayName),
-          )).toList(),
+          items: SearchSortOrder.values
+              .map((order) => DropdownMenuItem(
+                    value: order,
+                    child: Text(order.displayName),
+                  ))
+              .toList(),
           onChanged: (order) {
             if (order != null) {
               provider.setSortOrder(order);
@@ -152,7 +161,7 @@ class _SearchScreenState extends State<SearchScreen> {
       ],
     );
   }
-  
+
   Widget _buildSuggestionsOrEmpty(SearchProvider provider) {
     if (provider.query.isEmpty) {
       // Show search history
@@ -170,14 +179,14 @@ class _SearchScreenState extends State<SearchScreen> {
               Text(
                 '输入关键词开始搜索',
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: Theme.of(context).colorScheme.outline,
-                ),
+                      color: Theme.of(context).colorScheme.outline,
+                    ),
               ),
             ],
           ),
         );
       }
-      
+
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -221,7 +230,7 @@ class _SearchScreenState extends State<SearchScreen> {
         ],
       );
     }
-    
+
     // Show suggestions
     if (provider.suggestions.isNotEmpty) {
       return ListView.builder(
@@ -240,7 +249,7 @@ class _SearchScreenState extends State<SearchScreen> {
         },
       );
     }
-    
+
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -254,17 +263,17 @@ class _SearchScreenState extends State<SearchScreen> {
           Text(
             '未找到结果',
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              color: Theme.of(context).colorScheme.outline,
-            ),
+                  color: Theme.of(context).colorScheme.outline,
+                ),
           ),
         ],
       ),
     );
   }
-  
+
   Widget _buildSearchResults(SearchProvider provider) {
     final results = provider.results;
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -281,26 +290,29 @@ class _SearchScreenState extends State<SearchScreen> {
               Text(
                 '(${results.searchTime.inMilliseconds}ms)',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.outline,
-                ),
+                      color: Theme.of(context).colorScheme.outline,
+                    ),
               ),
             ],
           ),
         ),
-        
+
         // Source breakdown
         if (results.countBySource.isNotEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Wrap(
               spacing: 8,
-              children: results.countBySource.entries.map((entry) => Chip(
-                label: Text('${_getSourceName(entry.key)}: ${entry.value}'),
-                visualDensity: VisualDensity.compact,
-              )).toList(),
+              children: results.countBySource.entries
+                  .map((entry) => Chip(
+                        label: Text(
+                            '${_getSourceName(entry.key)}: ${entry.value}'),
+                        visualDensity: VisualDensity.compact,
+                      ))
+                  .toList(),
             ),
           ),
-        
+
         // Results list
         Expanded(
           child: ListView.builder(
@@ -321,7 +333,7 @@ class _SearchScreenState extends State<SearchScreen> {
       ],
     );
   }
-  
+
   IconData _getSuggestionIcon(String type) {
     switch (type) {
       case 'History':
@@ -336,7 +348,7 @@ class _SearchScreenState extends State<SearchScreen> {
         return Icons.search;
     }
   }
-  
+
   String _getSourceName(SearchResultSource source) {
     switch (source) {
       case SearchResultSource.activeTab:
@@ -351,7 +363,7 @@ class _SearchScreenState extends State<SearchScreen> {
         return '页面';
     }
   }
-  
+
   Future<void> _openResult(SearchResultItem item) async {
     final uri = Uri.tryParse(item.url);
     if (uri != null && await canLaunchUrl(uri)) {

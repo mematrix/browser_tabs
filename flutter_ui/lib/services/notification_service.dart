@@ -17,7 +17,7 @@ class NotificationConfig {
   final NotificationUrgency urgency;
   final List<NotificationAction> actions;
   final Duration? timeout;
-  
+
   const NotificationConfig({
     required this.title,
     required this.body,
@@ -27,7 +27,7 @@ class NotificationConfig {
     this.actions = const [],
     this.timeout,
   });
-  
+
   /// Create a simple notification
   factory NotificationConfig.simple(String message) {
     return NotificationConfig(
@@ -36,7 +36,7 @@ class NotificationConfig {
       timeout: const Duration(seconds: 5),
     );
   }
-  
+
   /// Create a notification with title
   factory NotificationConfig.withTitle(String title, String message) {
     return NotificationConfig(
@@ -51,7 +51,7 @@ class NotificationConfig {
 class NotificationAction {
   final String id;
   final String label;
-  
+
   const NotificationAction({
     required this.id,
     required this.label,
@@ -59,45 +59,45 @@ class NotificationAction {
 }
 
 /// Service for managing system notifications
-/// 
+///
 /// This service provides cross-platform notification support for
 /// Windows, Linux, and macOS. It integrates with the Rust backend
 /// for actual notification display.
 class NotificationService {
   bool _initialized = false;
-  
+
   /// Initialize the notification service
   Future<void> initialize() async {
     if (!Platform.isWindows && !Platform.isLinux && !Platform.isMacOS) {
       return;
     }
-    
+
     // TODO: Initialize via Rust backend
     // This would call CrossPlatformNotificationManager.initialize()
-    
+
     _initialized = true;
   }
-  
+
   /// Show a notification
   Future<String?> showNotification(NotificationConfig config) async {
     if (!_initialized) return null;
-    
+
     // TODO: Call Rust backend to show notification
     // This would use the FFI bridge to call CrossPlatformNotificationManager
-    
+
     return null; // Return notification ID
   }
-  
+
   /// Show a simple notification
   Future<String?> showSimple(String message) async {
     return showNotification(NotificationConfig.simple(message));
   }
-  
+
   /// Show a notification with title
   Future<String?> showWithTitle(String title, String message) async {
     return showNotification(NotificationConfig.withTitle(title, message));
   }
-  
+
   /// Show notification for new tab activity
   Future<String?> showTabActivityNotification({
     required String browserName,
@@ -110,7 +110,7 @@ class NotificationService {
       timeout: const Duration(seconds: 5),
     ));
   }
-  
+
   /// Show notification for bookmark sync
   Future<String?> showBookmarkSyncNotification({
     required int syncedCount,
@@ -122,7 +122,7 @@ class NotificationService {
       timeout: const Duration(seconds: 3),
     ));
   }
-  
+
   /// Show notification for content analysis complete
   Future<String?> showAnalysisCompleteNotification({
     required int analyzedCount,
@@ -137,7 +137,7 @@ class NotificationService {
       timeout: const Duration(seconds: 5),
     ));
   }
-  
+
   /// Show notification for duplicate bookmarks found
   Future<String?> showDuplicatesFoundNotification({
     required int duplicateCount,
@@ -152,9 +152,9 @@ class NotificationService {
       ],
     ));
   }
-  
+
   bool get isInitialized => _initialized;
-  
+
   /// Dispose the service
   Future<void> dispose() async {
     _initialized = false;

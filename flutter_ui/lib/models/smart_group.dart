@@ -1,5 +1,3 @@
-import 'page_info.dart';
-
 /// Smart group type
 enum GroupType {
   domain,

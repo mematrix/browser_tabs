@@ -20,13 +20,13 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
   String _searchQuery = '';
   String? _selectedCategory;
   BookmarkSortOrder _sortOrder = BookmarkSortOrder.recent;
-  
+
   @override
   Widget build(BuildContext context) {
     final pageProvider = context.watch<PageProvider>();
     final bookmarks = _filterAndSortBookmarks(pageProvider.bookmarks);
     final categories = _getCategories(pageProvider.bookmarks);
-    
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('书签'),
@@ -86,7 +86,7 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
               },
             ),
           ),
-          
+
           // Filters
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -121,19 +121,20 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
                         ),
                         const SizedBox(width: 8),
                         ...categories.map((category) => Padding(
-                          padding: const EdgeInsets.only(right: 8),
-                          child: FilterChip(
-                            label: Text(category),
-                            selected: _selectedCategory == category,
-                            onSelected: (_) {
-                              setState(() {
-                                _selectedCategory = _selectedCategory == category 
-                                    ? null 
-                                    : category;
-                              });
-                            },
-                          ),
-                        )),
+                              padding: const EdgeInsets.only(right: 8),
+                              child: FilterChip(
+                                label: Text(category),
+                                selected: _selectedCategory == category,
+                                onSelected: (_) {
+                                  setState(() {
+                                    _selectedCategory =
+                                        _selectedCategory == category
+                                            ? null
+                                            : category;
+                                  });
+                                },
+                              ),
+                            )),
                       ],
                     ),
                   ),
@@ -141,7 +142,7 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
             ),
           ),
           const SizedBox(height: 8),
-          
+
           // Bookmark count
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -155,7 +156,7 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
             ),
           ),
           const SizedBox(height: 8),
-          
+
           // Bookmark list
           Expanded(
             child: pageProvider.isLoading
@@ -190,30 +191,34 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
       ),
     );
   }
-  
-  List<UnifiedPageInfo> _filterAndSortBookmarks(List<UnifiedPageInfo> bookmarks) {
+
+  List<UnifiedPageInfo> _filterAndSortBookmarks(
+      List<UnifiedPageInfo> bookmarks) {
     var filtered = bookmarks;
-    
+
     // Filter by browser
     if (_selectedBrowser != null) {
-      filtered = filtered.where((b) => b.browserType == _selectedBrowser).toList();
+      filtered =
+          filtered.where((b) => b.browserType == _selectedBrowser).toList();
     }
-    
+
     // Filter by category
     if (_selectedCategory != null) {
-      filtered = filtered.where((b) => b.category == _selectedCategory).toList();
+      filtered =
+          filtered.where((b) => b.category == _selectedCategory).toList();
     }
-    
+
     // Filter by search query
     if (_searchQuery.isNotEmpty) {
       final query = _searchQuery.toLowerCase();
-      filtered = filtered.where((b) =>
-        b.title.toLowerCase().contains(query) ||
-        b.url.toLowerCase().contains(query) ||
-        b.keywords.any((k) => k.toLowerCase().contains(query))
-      ).toList();
+      filtered = filtered
+          .where((b) =>
+              b.title.toLowerCase().contains(query) ||
+              b.url.toLowerCase().contains(query) ||
+              b.keywords.any((k) => k.toLowerCase().contains(query)))
+          .toList();
     }
-    
+
     // Sort
     switch (_sortOrder) {
       case BookmarkSortOrder.recent:
@@ -232,10 +237,10 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
         filtered.sort((a, b) => b.accessCount.compareTo(a.accessCount));
         break;
     }
-    
+
     return filtered;
   }
-  
+
   List<String> _getCategories(List<UnifiedPageInfo> bookmarks) {
     final categories = <String>{};
     for (final bookmark in bookmarks) {
@@ -245,14 +250,14 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
     }
     return categories.toList()..sort();
   }
-  
+
   Future<void> _openBookmark(UnifiedPageInfo bookmark) async {
     final uri = Uri.tryParse(bookmark.url);
     if (uri != null && await canLaunchUrl(uri)) {
       await launchUrl(uri);
     }
   }
-  
+
   Widget _buildBookmarkActions(UnifiedPageInfo bookmark) {
     return PopupMenuButton<String>(
       icon: const Icon(Icons.more_vert),

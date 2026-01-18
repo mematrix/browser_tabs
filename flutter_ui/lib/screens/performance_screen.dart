@@ -267,7 +267,6 @@ class _PerformanceScreenState extends State<PerformanceScreen> {
     );
   }
 
-
   Widget _buildPerformanceChart(ThemeData theme) {
     return Card(
       child: Padding(
@@ -294,8 +293,10 @@ class _PerformanceScreenState extends State<PerformanceScreen> {
               child: CustomPaint(
                 size: const Size(double.infinity, 150),
                 painter: _SimpleChartPainter(
-                  memoryData: _history.map((m) => m.memoryUsageMb / 512).toList(),
-                  cpuData: _history.map((m) => m.cpuUsagePercent / 100).toList(),
+                  memoryData:
+                      _history.map((m) => m.memoryUsageMb / 512).toList(),
+                  cpuData:
+                      _history.map((m) => m.cpuUsagePercent / 100).toList(),
                 ),
               ),
             ),
@@ -336,7 +337,8 @@ class _PerformanceScreenState extends State<PerformanceScreen> {
     );
   }
 
-  Widget _buildResourceConfigSection(ThemeData theme, SettingsProvider settings) {
+  Widget _buildResourceConfigSection(
+      ThemeData theme, SettingsProvider settings) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -369,7 +371,8 @@ class _PerformanceScreenState extends State<PerformanceScreen> {
             ),
             ListTile(
               title: const Text('最大 CPU 限制'),
-              subtitle: Text('${settings.resourceConfig.maxCpuPercent.toStringAsFixed(0)}%'),
+              subtitle: Text(
+                  '${settings.resourceConfig.maxCpuPercent.toStringAsFixed(0)}%'),
               trailing: SizedBox(
                 width: 150,
                 child: Slider(
@@ -377,23 +380,27 @@ class _PerformanceScreenState extends State<PerformanceScreen> {
                   min: 25,
                   max: 100,
                   divisions: 3,
-                  label: '${settings.resourceConfig.maxCpuPercent.toStringAsFixed(0)}%',
+                  label:
+                      '${settings.resourceConfig.maxCpuPercent.toStringAsFixed(0)}%',
                   onChanged: settings.setMaxCpuPercent,
                 ),
               ),
             ),
             ListTile(
               title: const Text('并发 AI 任务数'),
-              subtitle: Text('${settings.resourceConfig.maxConcurrentAiTasks} 个'),
+              subtitle:
+                  Text('${settings.resourceConfig.maxConcurrentAiTasks} 个'),
               trailing: SizedBox(
                 width: 150,
                 child: Slider(
-                  value: settings.resourceConfig.maxConcurrentAiTasks.toDouble(),
+                  value:
+                      settings.resourceConfig.maxConcurrentAiTasks.toDouble(),
                   min: 1,
                   max: 8,
                   divisions: 7,
                   label: '${settings.resourceConfig.maxConcurrentAiTasks}',
-                  onChanged: (value) => settings.setMaxConcurrentAiTasks(value.toInt()),
+                  onChanged: (value) =>
+                      settings.setMaxConcurrentAiTasks(value.toInt()),
                 ),
               ),
             ),
@@ -436,9 +443,7 @@ class _PerformanceScreenState extends State<PerformanceScreen> {
 
   Widget _buildActivityItem(ThemeData theme, PerformanceMetrics metrics) {
     final timeAgo = DateTime.now().difference(metrics.timestamp);
-    final timeText = timeAgo.inMinutes < 1
-        ? '刚刚'
-        : '${timeAgo.inMinutes} 分钟前';
+    final timeText = timeAgo.inMinutes < 1 ? '刚刚' : '${timeAgo.inMinutes} 分钟前';
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
@@ -448,7 +453,8 @@ class _PerformanceScreenState extends State<PerformanceScreen> {
             width: 8,
             height: 8,
             decoration: BoxDecoration(
-              color: metrics.recentErrorCount > 0 ? Colors.orange : Colors.green,
+              color:
+                  metrics.recentErrorCount > 0 ? Colors.orange : Colors.green,
               shape: BoxShape.circle,
             ),
           ),
@@ -568,6 +574,7 @@ class _SimpleChartPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _SimpleChartPainter oldDelegate) {
-    return memoryData != oldDelegate.memoryData || cpuData != oldDelegate.cpuData;
+    return memoryData != oldDelegate.memoryData ||
+        cpuData != oldDelegate.cpuData;
   }
 }

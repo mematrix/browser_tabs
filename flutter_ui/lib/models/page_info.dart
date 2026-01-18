@@ -54,21 +54,30 @@ class ContentSummary {
       language: json['language'] ?? 'en',
       readingTimeMinutes: json['reading_time_minutes'] ?? 0,
       confidenceScore: (json['confidence_score'] ?? 0.0).toDouble(),
-      generatedAt: DateTime.tryParse(json['generated_at'] ?? '') ?? DateTime.now(),
+      generatedAt:
+          DateTime.tryParse(json['generated_at'] ?? '') ?? DateTime.now(),
     );
   }
 
   static ContentType _parseContentType(dynamic value) {
     if (value is String) {
       switch (value.toLowerCase()) {
-        case 'article': return ContentType.article;
-        case 'video': return ContentType.video;
-        case 'documentation': return ContentType.documentation;
-        case 'socialmedia': return ContentType.socialMedia;
-        case 'shopping': return ContentType.shopping;
-        case 'news': return ContentType.news;
-        case 'reference': return ContentType.reference;
-        default: return ContentType.other;
+        case 'article':
+          return ContentType.article;
+        case 'video':
+          return ContentType.video;
+        case 'documentation':
+          return ContentType.documentation;
+        case 'socialmedia':
+          return ContentType.socialMedia;
+        case 'shopping':
+          return ContentType.shopping;
+        case 'news':
+          return ContentType.news;
+        case 'reference':
+          return ContentType.reference;
+        default:
+          return ContentType.other;
       }
     }
     return ContentType.other;
@@ -115,15 +124,16 @@ class UnifiedPageInfo {
       url: json['url'] ?? '',
       title: json['title'] ?? '',
       faviconUrl: json['favicon_url'],
-      contentSummary: json['content_summary'] != null 
-          ? ContentSummary.fromJson(json['content_summary']) 
+      contentSummary: json['content_summary'] != null
+          ? ContentSummary.fromJson(json['content_summary'])
           : null,
       keywords: List<String>.from(json['keywords'] ?? []),
       category: json['category'],
       sourceType: _parseSourceType(json['source_type']),
       browserType: _parseBrowserType(json['browser_type']),
       createdAt: DateTime.tryParse(json['created_at'] ?? '') ?? DateTime.now(),
-      lastAccessed: DateTime.tryParse(json['last_accessed'] ?? '') ?? DateTime.now(),
+      lastAccessed:
+          DateTime.tryParse(json['last_accessed'] ?? '') ?? DateTime.now(),
       accessCount: json['access_count'] ?? 0,
       hasBookmark: json['has_bookmark'] ?? false,
       hasPendingChanges: json['has_pending_changes'] ?? false,
@@ -135,7 +145,8 @@ class UnifiedPageInfo {
       if (value.containsKey('ActiveTab')) return PageSourceType.activeTab;
       if (value.containsKey('Bookmark')) return PageSourceType.bookmark;
       if (value.containsKey('ClosedTab')) return PageSourceType.closedTab;
-      if (value.containsKey('ArchivedContent')) return PageSourceType.archivedContent;
+      if (value.containsKey('ArchivedContent'))
+        return PageSourceType.archivedContent;
     }
     return PageSourceType.activeTab;
   }
@@ -143,10 +154,14 @@ class UnifiedPageInfo {
   static BrowserType? _parseBrowserType(dynamic value) {
     if (value is String) {
       switch (value.toLowerCase()) {
-        case 'chrome': return BrowserType.chrome;
-        case 'firefox': return BrowserType.firefox;
-        case 'edge': return BrowserType.edge;
-        case 'safari': return BrowserType.safari;
+        case 'chrome':
+          return BrowserType.chrome;
+        case 'firefox':
+          return BrowserType.firefox;
+        case 'edge':
+          return BrowserType.edge;
+        case 'safari':
+          return BrowserType.safari;
       }
     }
     return null;

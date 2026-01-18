@@ -15,7 +15,7 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final pageProvider = context.watch<PageProvider>();
     final stats = pageProvider.stats;
-    
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Browser Page Manager'),
@@ -39,15 +39,15 @@ class HomeScreen extends StatelessWidget {
                     // Stats overview
                     _buildStatsSection(context, stats),
                     const SizedBox(height: 24),
-                    
+
                     // Quick actions
                     _buildQuickActions(context),
                     const SizedBox(height: 24),
-                    
+
                     // Recent tabs
                     _buildRecentTabs(context, pageProvider),
                     const SizedBox(height: 24),
-                    
+
                     // Smart groups
                     _buildSmartGroups(context, pageProvider),
                   ],
@@ -56,7 +56,7 @@ class HomeScreen extends StatelessWidget {
             ),
     );
   }
-  
+
   Widget _buildStatsSection(BuildContext context, PageStats stats) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -105,7 +105,7 @@ class HomeScreen extends StatelessWidget {
       ],
     );
   }
-  
+
   Widget _buildQuickActions(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -150,10 +150,10 @@ class HomeScreen extends StatelessWidget {
       ],
     );
   }
-  
+
   Widget _buildRecentTabs(BuildContext context, PageProvider provider) {
     final recentTabs = provider.activeTabs.take(5).toList();
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -181,21 +181,25 @@ class HomeScreen extends StatelessWidget {
         else
           Card(
             child: Column(
-              children: recentTabs.map((tab) => PageListTile(
-                page: tab,
-                onTap: () => provider.activateTab(tab),
-                onClose: () => provider.closeTab(tab),
-                onBookmark: tab.hasBookmark ? null : () => provider.createBookmarkFromTab(tab),
-              )).toList(),
+              children: recentTabs
+                  .map((tab) => PageListTile(
+                        page: tab,
+                        onTap: () => provider.activateTab(tab),
+                        onClose: () => provider.closeTab(tab),
+                        onBookmark: tab.hasBookmark
+                            ? null
+                            : () => provider.createBookmarkFromTab(tab),
+                      ))
+                  .toList(),
             ),
           ),
       ],
     );
   }
-  
+
   Widget _buildSmartGroups(BuildContext context, PageProvider provider) {
     final groups = provider.groups.take(4).toList();
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -226,12 +230,14 @@ class HomeScreen extends StatelessWidget {
           Wrap(
             spacing: 12,
             runSpacing: 12,
-            children: groups.map((group) => GroupCard(
-              group: group,
-              onTap: () {
-                // TODO: Show group details
-              },
-            )).toList(),
+            children: groups
+                .map((group) => GroupCard(
+                      group: group,
+                      onTap: () {
+                        // TODO: Show group details
+                      },
+                    ))
+                .toList(),
           ),
       ],
     );

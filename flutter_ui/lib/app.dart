@@ -17,7 +17,7 @@ class WebPageManagerApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsProvider>();
-    
+
     return MaterialApp.router(
       title: 'Web Page Manager',
       debugShowCheckedModeBanner: false,
@@ -27,7 +27,7 @@ class WebPageManagerApp extends StatelessWidget {
       routerConfig: _router,
     );
   }
-  
+
   static final _router = GoRouter(
     initialLocation: '/',
     routes: [
@@ -67,19 +67,20 @@ class WebPageManagerApp extends StatelessWidget {
 /// Main shell with navigation rail
 class MainShell extends StatelessWidget {
   final Widget child;
-  
+
   const MainShell({super.key, required this.child});
 
   @override
   Widget build(BuildContext context) {
     final currentPath = GoRouterState.of(context).uri.path;
-    
+
     return Scaffold(
       body: Row(
         children: [
           NavigationRail(
             selectedIndex: _getSelectedIndex(currentPath),
-            onDestinationSelected: (index) => _onDestinationSelected(context, index),
+            onDestinationSelected: (index) =>
+                _onDestinationSelected(context, index),
             labelType: NavigationRailLabelType.all,
             leading: Padding(
               padding: const EdgeInsets.symmetric(vertical: 16),
@@ -128,7 +129,7 @@ class MainShell extends StatelessWidget {
       ),
     );
   }
-  
+
   int _getSelectedIndex(String path) {
     switch (path) {
       case '/':
@@ -147,9 +148,16 @@ class MainShell extends StatelessWidget {
         return 0;
     }
   }
-  
+
   void _onDestinationSelected(BuildContext context, int index) {
-    final paths = ['/', '/tabs', '/bookmarks', '/search', '/history', '/settings'];
+    final paths = [
+      '/',
+      '/tabs',
+      '/bookmarks',
+      '/search',
+      '/history',
+      '/settings'
+    ];
     context.go(paths[index]);
   }
 }

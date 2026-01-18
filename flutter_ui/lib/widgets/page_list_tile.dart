@@ -12,7 +12,7 @@ class PageListTile extends StatelessWidget {
   final bool showCategory;
   final bool showTime;
   final Widget? trailing;
-  
+
   const PageListTile({
     super.key,
     required this.page,
@@ -38,7 +38,7 @@ class PageListTile extends StatelessWidget {
       onTap: onTap,
     );
   }
-  
+
   Widget _buildLeading(BuildContext context) {
     return Stack(
       children: [
@@ -57,7 +57,8 @@ class PageListTile extends StatelessWidget {
                     width: 40,
                     height: 40,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => const Icon(Icons.web, size: 24),
+                    errorBuilder: (_, __, ___) =>
+                        const Icon(Icons.web, size: 24),
                   ),
                 )
               : const Icon(Icons.web, size: 24),
@@ -82,16 +83,16 @@ class PageListTile extends StatelessWidget {
       ],
     );
   }
-  
+
   Widget _buildSubtitle(BuildContext context) {
     final parts = <Widget>[];
-    
+
     // Domain
     parts.add(Text(
       page.domain,
       style: Theme.of(context).textTheme.bodySmall,
     ));
-    
+
     // Category
     if (showCategory && page.category != null) {
       parts.add(const SizedBox(width: 8));
@@ -104,23 +105,23 @@ class PageListTile extends StatelessWidget {
         child: Text(
           page.category!,
           style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: Theme.of(context).colorScheme.onPrimaryContainer,
-          ),
+                color: Theme.of(context).colorScheme.onPrimaryContainer,
+              ),
         ),
       ));
     }
-    
+
     // Time
     if (showTime) {
       parts.add(const SizedBox(width: 8));
       parts.add(Text(
         _formatTime(page.lastAccessed),
         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-          color: Theme.of(context).colorScheme.outline,
-        ),
+              color: Theme.of(context).colorScheme.outline,
+            ),
       ));
     }
-    
+
     // Bookmark indicator
     if (page.hasBookmark) {
       parts.add(const SizedBox(width: 8));
@@ -130,7 +131,7 @@ class PageListTile extends StatelessWidget {
         color: Theme.of(context).colorScheme.primary,
       ));
     }
-    
+
     // Pending changes indicator
     if (page.hasPendingChanges) {
       parts.add(const SizedBox(width: 4));
@@ -140,13 +141,13 @@ class PageListTile extends StatelessWidget {
         color: Theme.of(context).colorScheme.tertiary,
       ));
     }
-    
+
     return Row(children: parts);
   }
-  
+
   Widget? _buildTrailing(BuildContext context) {
     if (onClose == null && onBookmark == null) return null;
-    
+
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -167,7 +168,7 @@ class PageListTile extends StatelessWidget {
       ],
     );
   }
-  
+
   Color _getBrowserColor(BrowserType browser) {
     switch (browser) {
       case BrowserType.chrome:
@@ -180,11 +181,11 @@ class PageListTile extends StatelessWidget {
         return Colors.blue.shade300;
     }
   }
-  
+
   String _formatTime(DateTime time) {
     final now = DateTime.now();
     final diff = now.difference(time);
-    
+
     if (diff.inMinutes < 1) {
       return '刚刚';
     } else if (diff.inMinutes < 60) {

@@ -11,7 +11,7 @@ class SettingsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsProvider>();
-    
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('设置'),
@@ -55,7 +55,7 @@ class SettingsScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          
+
           // Behavior section
           _buildSectionHeader(context, '行为'),
           Card(
@@ -88,7 +88,7 @@ class SettingsScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          
+
           // Data section
           _buildSectionHeader(context, '数据'),
           Card(
@@ -127,7 +127,7 @@ class SettingsScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          
+
           // Browser section
           _buildSectionHeader(context, '浏览器'),
           Card(
@@ -142,7 +142,8 @@ class SettingsScreen extends StatelessWidget {
                     underline: const SizedBox(),
                     items: const [
                       DropdownMenuItem(value: 'chrome', child: Text('Chrome')),
-                      DropdownMenuItem(value: 'firefox', child: Text('Firefox')),
+                      DropdownMenuItem(
+                          value: 'firefox', child: Text('Firefox')),
                       DropdownMenuItem(value: 'edge', child: Text('Edge')),
                     ],
                     onChanged: (value) {
@@ -156,7 +157,7 @@ class SettingsScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          
+
           // Performance section
           _buildSectionHeader(context, '性能'),
           Card(
@@ -218,7 +219,7 @@ class SettingsScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          
+
           // Hotkeys section
           if (settings.enableHotkeys) ...[
             _buildSectionHeader(context, '快捷键'),
@@ -231,8 +232,8 @@ class SettingsScreen extends StatelessWidget {
                     trailing: Text(
                       'Ctrl+Shift+F',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontFamily: 'monospace',
-                      ),
+                            fontFamily: 'monospace',
+                          ),
                     ),
                   ),
                   const Divider(height: 1),
@@ -242,8 +243,8 @@ class SettingsScreen extends StatelessWidget {
                     trailing: Text(
                       'Ctrl+Shift+W',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontFamily: 'monospace',
-                      ),
+                            fontFamily: 'monospace',
+                          ),
                     ),
                   ),
                   const Divider(height: 1),
@@ -253,8 +254,8 @@ class SettingsScreen extends StatelessWidget {
                     trailing: Text(
                       'Ctrl+Shift+T',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontFamily: 'monospace',
-                      ),
+                            fontFamily: 'monospace',
+                          ),
                     ),
                   ),
                 ],
@@ -262,16 +263,16 @@ class SettingsScreen extends StatelessWidget {
             ),
             const SizedBox(height: 16),
           ],
-          
+
           // About section
           _buildSectionHeader(context, '关于'),
           Card(
             child: Column(
               children: [
-                ListTile(
-                  leading: const Icon(Icons.info),
-                  title: const Text('版本'),
-                  trailing: const Text('1.0.0'),
+                const ListTile(
+                  leading: Icon(Icons.info),
+                  title: Text('版本'),
+                  trailing: Text('1.0.0'),
                 ),
                 const Divider(height: 1),
                 ListTile(
@@ -286,20 +287,21 @@ class SettingsScreen extends StatelessWidget {
       ),
     );
   }
-  
+
   Widget _buildSectionHeader(BuildContext context, String title) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Text(
         title,
         style: Theme.of(context).textTheme.titleMedium?.copyWith(
-          color: Theme.of(context).colorScheme.primary,
-        ),
+              color: Theme.of(context).colorScheme.primary,
+            ),
       ),
     );
   }
-  
-  Future<void> _showResetDialog(BuildContext context, SettingsProvider settings) async {
+
+  Future<void> _showResetDialog(
+      BuildContext context, SettingsProvider settings) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -317,7 +319,7 @@ class SettingsScreen extends StatelessWidget {
         ],
       ),
     );
-    
+
     if (confirmed == true) {
       await settings.resetToDefaults();
     }

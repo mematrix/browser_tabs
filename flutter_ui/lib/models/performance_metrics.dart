@@ -148,11 +148,11 @@ class PerformanceSummary {
   }
 
   /// Get memory usage percentage of limit
-  double get memoryUsagePercent => 
+  double get memoryUsagePercent =>
       memoryLimitMb > 0 ? (currentMemoryMb / memoryLimitMb) * 100 : 0;
 
   /// Get CPU usage percentage of limit
-  double get cpuUsageOfLimit => 
+  double get cpuUsageOfLimit =>
       cpuLimitPercent > 0 ? (currentCpuPercent / cpuLimitPercent) * 100 : 0;
 }
 
@@ -263,7 +263,8 @@ class ResourceConfig {
       maxConcurrentAiTasks: maxConcurrentAiTasks ?? this.maxConcurrentAiTasks,
       maxDatabaseSizeMb: maxDatabaseSizeMb ?? this.maxDatabaseSizeMb,
       adaptiveManagement: adaptiveManagement ?? this.adaptiveManagement,
-      backgroundIntervalSecs: backgroundIntervalSecs ?? this.backgroundIntervalSecs,
+      backgroundIntervalSecs:
+          backgroundIntervalSecs ?? this.backgroundIntervalSecs,
       cacheSizeMb: cacheSizeMb ?? this.cacheSizeMb,
     );
   }

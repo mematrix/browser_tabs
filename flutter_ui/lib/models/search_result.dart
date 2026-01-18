@@ -43,8 +43,8 @@ class SearchResultItem {
       relevanceScore: (json['relevance_score'] ?? 0.0).toDouble(),
       snippet: json['snippet'],
       keywords: List<String>.from(json['keywords'] ?? []),
-      lastAccessed: json['last_accessed'] != null 
-          ? DateTime.tryParse(json['last_accessed']) 
+      lastAccessed: json['last_accessed'] != null
+          ? DateTime.tryParse(json['last_accessed'])
           : null,
     );
   }
@@ -52,11 +52,16 @@ class SearchResultItem {
   static SearchResultSource _parseSource(dynamic value) {
     if (value is String) {
       switch (value) {
-        case 'ActiveTab': return SearchResultSource.activeTab;
-        case 'Bookmark': return SearchResultSource.bookmark;
-        case 'History': return SearchResultSource.history;
-        case 'Archive': return SearchResultSource.archive;
-        case 'UnifiedPage': return SearchResultSource.unifiedPage;
+        case 'ActiveTab':
+          return SearchResultSource.activeTab;
+        case 'Bookmark':
+          return SearchResultSource.bookmark;
+        case 'History':
+          return SearchResultSource.history;
+        case 'Archive':
+          return SearchResultSource.archive;
+        case 'UnifiedPage':
+          return SearchResultSource.unifiedPage;
       }
     }
     return SearchResultSource.unifiedPage;
@@ -65,10 +70,14 @@ class SearchResultItem {
   static BrowserType? _parseBrowserType(dynamic value) {
     if (value is String) {
       switch (value.toLowerCase()) {
-        case 'chrome': return BrowserType.chrome;
-        case 'firefox': return BrowserType.firefox;
-        case 'edge': return BrowserType.edge;
-        case 'safari': return BrowserType.safari;
+        case 'chrome':
+          return BrowserType.chrome;
+        case 'firefox':
+          return BrowserType.firefox;
+        case 'edge':
+          return BrowserType.edge;
+        case 'safari':
+          return BrowserType.safari;
       }
     }
     return null;
@@ -100,9 +109,10 @@ class SearchResults {
 
   factory SearchResults.fromJson(Map<String, dynamic> json) {
     final items = (json['items'] as List?)
-        ?.map((e) => SearchResultItem.fromJson(e))
-        .toList() ?? [];
-    
+            ?.map((e) => SearchResultItem.fromJson(e))
+            .toList() ??
+        [];
+
     return SearchResults(
       totalCount: json['total_count'] ?? items.length,
       items: items,
@@ -114,9 +124,9 @@ class SearchResults {
   static Map<SearchResultSource, int> _parseCountBySource(dynamic value) {
     if (value is Map) {
       return value.map((k, v) => MapEntry(
-        SearchResultItem._parseSource(k),
-        v as int,
-      ));
+            SearchResultItem._parseSource(k),
+            v as int,
+          ));
     }
     return {};
   }
