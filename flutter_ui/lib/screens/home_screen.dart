@@ -18,7 +18,7 @@ class HomeScreen extends StatelessWidget {
     
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Web Page Manager'),
+        title: const Text('Browser Page Manager'),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),

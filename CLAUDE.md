@@ -1,7 +1,7 @@
-# Webpage Manager Project
+# Browser Tabs Manager Project
 
 ## Overview
-Webpage management application with Rust core and multiple UI implementations.
+Browser tabs management application with Rust core and multiple UI implementations.
 
 ## Architecture
 - Core logic in Rust

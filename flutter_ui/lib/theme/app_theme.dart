@@ -17,7 +17,7 @@ class AppTheme {
         selectedIconTheme: IconThemeData(color: _primaryColor),
         unselectedIconTheme: IconThemeData(color: Colors.grey),
       ),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         elevation: 2,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
@@ -51,7 +51,7 @@ class AppTheme {
         selectedIconTheme: IconThemeData(color: _secondaryColor),
         unselectedIconTheme: IconThemeData(color: Colors.grey),
       ),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         elevation: 2,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),

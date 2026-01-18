@@ -53,7 +53,7 @@ flutter:
     - assets/icons/
     - assets/images/
   
-  fonts:
-    - family: WebPageManager
-      fonts:
-        - asset: assets/fonts/WebPageManager.ttf
+  # fonts:
+  #   - family: WebPageManager
+  #     fonts:
+  #       - asset: assets/fonts/WebPageManager.ttf
