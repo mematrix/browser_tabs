@@ -38,6 +38,9 @@ dependencies:
   url_launcher: ^6.2.2
   path_provider: ^2.1.2
   shared_preferences: ^2.2.2
+  rust_lib_web_page_manager_ui:
+    path: rust_builder
+  flutter_rust_bridge: 2.11.1
 
 dev_dependencies:
   flutter_test:
@@ -45,6 +48,8 @@ dev_dependencies:
   flutter_lints: ^3.0.1
   json_serializable: ^6.7.1
   build_runner: ^2.4.8
+  integration_test:
+    sdk: flutter
 
 flutter:
   uses-material-design: true

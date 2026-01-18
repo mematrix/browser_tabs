@@ -6,7 +6,8 @@ members = [
     "ai-processor-ffi",
     "data-access",
     "page-manager",
-    "integration"
+    "integration",
+    "flutter_bridge"
 ]
 resolver = "2"
 
