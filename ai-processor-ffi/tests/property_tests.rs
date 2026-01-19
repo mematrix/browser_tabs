@@ -800,7 +800,7 @@ mod unit_tests {
 
 use ai_processor_ffi::{
     ai_processor_suggest_groups, ai_processor_free_groups,
-    CGroupSuggestion, CGroupType,
+    CGroupSuggestion,
 };
 
 proptest! {
@@ -843,6 +843,7 @@ proptest! {
             let result = ai_processor_suggest_groups(
                 processor,
                 pages_cstring.as_ptr(),
+                0.5, // similarity_threshold
                 &mut groups_ptr,
                 &mut count,
             );
@@ -856,7 +857,7 @@ proptest! {
                 let groups = std::slice::from_raw_parts(groups_ptr, count);
 
                 // At least one group should contain multiple pages
-                let has_multi_page_group = groups.iter().any(|g| g.page_count >= 2);
+                let has_multi_page_group = groups.iter().any(|g| g.page_ids_count >= 2);
                 prop_assert!(
                     has_multi_page_group,
                     "Similar content should be grouped together (found {} groups)",
@@ -890,6 +891,7 @@ proptest! {
             ai_processor_suggest_groups(
                 processor,
                 pages_cstring.as_ptr(),
+                0.5, // similarity_threshold
                 &mut groups_ptr1,
                 &mut count1,
             );
@@ -900,6 +902,7 @@ proptest! {
             ai_processor_suggest_groups(
                 processor,
                 pages_cstring.as_ptr(),
+                0.5, // similarity_threshold
                 &mut groups_ptr2,
                 &mut count2,
             );
@@ -915,18 +918,11 @@ proptest! {
                 let groups1 = std::slice::from_raw_parts(groups_ptr1, count1);
                 let groups2 = std::slice::from_raw_parts(groups_ptr2, count2);
 
-                // Group types should match
+                // Page counts should match
                 for i in 0..count1 {
                     prop_assert_eq!(
-                        groups1[i].group_type,
-                        groups2[i].group_type,
-                        "Group {} type should be deterministic",
-                        i
-                    );
-
-                    prop_assert_eq!(
-                        groups1[i].page_count,
-                        groups2[i].page_count,
+                        groups1[i].page_ids_count,
+                        groups2[i].page_ids_count,
                         "Group {} page count should be deterministic",
                         i
                     );
@@ -972,6 +968,7 @@ proptest! {
             ai_processor_suggest_groups(
                 processor,
                 pages_cstring.as_ptr(),
+                0.5, // similarity_threshold
                 &mut groups_ptr,
                 &mut count,
             );
@@ -1004,6 +1001,7 @@ proptest! {
             ai_processor_suggest_groups(
                 processor,
                 pages_cstring.as_ptr(),
+                0.5, // similarity_threshold
                 &mut groups_ptr,
                 &mut count,
             );
@@ -1013,10 +1011,10 @@ proptest! {
 
                 for (i, group) in groups.iter().enumerate() {
                     prop_assert!(
-                        group.confidence >= 0.0 && group.confidence <= 1.0,
-                        "Group {} confidence {} should be in [0.0, 1.0]",
+                        group.similarity_score >= 0.0 && group.similarity_score <= 1.0,
+                        "Group {} similarity_score {} should be in [0.0, 1.0]",
                         i,
-                        group.confidence
+                        group.similarity_score
                     );
                 }
             }
@@ -1038,7 +1036,7 @@ proptest! {
 
 use ai_processor_ffi::{
     ai_processor_calculate_similarity, ai_processor_recommend_related,
-    ai_processor_free_recommendations, CRecommendation,
+    ai_processor_free_recommendations, CCrossRecommendation,
 };
 
 proptest! {
@@ -1165,7 +1163,7 @@ proptest! {
             let candidates_json = serde_json::to_string(&candidates).unwrap();
             let candidates_cstring = CString::new(candidates_json).unwrap();
 
-            let mut recs_ptr: *mut CRecommendation = ptr::null_mut();
+            let mut recs_ptr: *mut CCrossRecommendation = ptr::null_mut();
             let mut count: usize = 0;
 
             let result = ai_processor_recommend_related(
@@ -1214,7 +1212,7 @@ proptest! {
             let candidates_json = serde_json::to_string(&candidates).unwrap();
             let candidates_cstring = CString::new(candidates_json).unwrap();
 
-            let mut recs_ptr: *mut CRecommendation = ptr::null_mut();
+            let mut recs_ptr: *mut CCrossRecommendation = ptr::null_mut();
             let mut count: usize = 0;
 
             ai_processor_recommend_related(
