@@ -13,9 +13,11 @@
 pub mod schema;
 pub mod repository;
 pub mod cache;
+pub mod batch;
 
 pub use repository::*;
 pub use cache::*;
+pub use batch::*;
 
 use web_page_manager_core::*;
 use std::path::Path;
@@ -55,17 +57,20 @@ impl DatabaseManager {
                     details: format!("Failed to open database at {:?}: {}", path, e),
                 },
             })?;
-        
+
         let manager = Self {
             connection: Arc::new(connection),
             cache: Arc::new(DataCache::new(cache_config)),
         };
-        
+
+        // Apply performance optimizations
+        manager.optimize_connection().await?;
+
         // Run migrations
         manager.run_migrations().await?;
-        
+
         info!("Database initialized at {:?}", path);
-        
+
         Ok(manager)
     }
 
@@ -88,12 +93,50 @@ impl DatabaseManager {
             connection: Arc::new(connection),
             cache: Arc::new(DataCache::new(cache_config)),
         };
-        
+
+        // Apply performance optimizations
+        manager.optimize_connection().await?;
+
         manager.run_migrations().await?;
-        
+
         debug!("In-memory database initialized");
-        
+
         Ok(manager)
+    }
+
+    /// Apply performance optimizations to the database connection
+    async fn optimize_connection(&self) -> Result<()> {
+        self.connection
+            .call(|conn| {
+                // Use WAL mode for better concurrent read/write performance
+                conn.execute_batch("PRAGMA journal_mode = WAL;")?;
+
+                // Increase cache size to 64MB for better performance
+                conn.execute_batch("PRAGMA cache_size = -64000;")?;
+
+                // Use memory for temporary tables
+                conn.execute_batch("PRAGMA temp_store = MEMORY;")?;
+
+                // Synchronous mode for better performance (safe with WAL)
+                conn.execute_batch("PRAGMA synchronous = NORMAL;")?;
+
+                // Enable memory-mapped I/O (64MB)
+                conn.execute_batch("PRAGMA mmap_size = 67108864;")?;
+
+                // Optimize page size
+                conn.execute_batch("PRAGMA page_size = 4096;")?;
+
+                Ok(())
+            })
+            .await
+            .map_err(|e| WebPageManagerError::System {
+                source: SystemError::Configuration {
+                    details: format!("Failed to optimize database connection: {}", e),
+                },
+            })?;
+
+        debug!("Database connection optimized");
+        Ok(())
     }
 
     /// Run database migrations
@@ -297,6 +340,11 @@ impl DatabaseManager {
     pub async fn clear_cache(&self) {
         self.cache.clear_all().await;
         debug!("Cache cleared");
+    }
+
+    /// Create batch operations handler
+    pub fn batch_operations(&self) -> BatchPageOperations {
+        BatchPageOperations::new(self.connection())
     }
 }
 
