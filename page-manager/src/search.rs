@@ -434,7 +434,7 @@ impl UnifiedSearchManager {
             let relevance = self.calculate_relevance(query, &tab.url, &tab.title, &[]);
             if relevance > 0.0 {
                 results.push(SearchResultItem {
-                    id: tab.id.0.clone(),
+                    id: tab.id.0.to_string(),
                     url: tab.url.clone(),
                     title: tab.title.clone(),
                     favicon_url: tab.favicon_url.clone(),
@@ -460,7 +460,7 @@ impl UnifiedSearchManager {
             let relevance = self.calculate_relevance(query, &bookmark.url, &bookmark.title, &[]);
             if relevance > 0.0 {
                 results.push(SearchResultItem {
-                    id: bookmark.id.0.clone(),
+                    id: bookmark.id.0.to_string(),
                     url: bookmark.url.clone(),
                     title: bookmark.title.clone(),
                     favicon_url: bookmark.favicon_url.clone(),

@@ -64,7 +64,7 @@ pub enum ExtensionResponse {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FirefoxTab {
-    pub id: i64,
+    pub id: Uuid,
     pub url: String,
     pub title: String,
     pub fav_icon_url: Option<String>,
@@ -79,7 +79,7 @@ pub struct FirefoxTab {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FirefoxBookmark {
-    pub id: String,
+    pub id: Uuid,
     pub url: Option<String>,
     pub title: String,
     pub parent_id: Option<String>,
@@ -252,7 +252,7 @@ impl FirefoxConnector {
     #[allow(dead_code)]
     fn firefox_tab_to_tab_info(&self, tab: &FirefoxTab) -> TabInfo {
         TabInfo {
-            id: TabId(tab.id.to_string()),
+            id: TabId(tab.id.clone()),
             url: tab.url.clone(),
             title: tab.title.clone(),
             favicon_url: tab.fav_icon_url.clone(),
@@ -640,7 +640,7 @@ mod tests {
     fn test_firefox_tab_conversion() {
         let connector = FirefoxConnector::new();
         let firefox_tab = FirefoxTab {
-            id: 123,
+            id: Uuid::new_v4(),
             url: "https://example.com".to_string(),
             title: "Example".to_string(),
             fav_icon_url: Some("https://example.com/favicon.ico".to_string()),
@@ -653,7 +653,7 @@ mod tests {
         
         let tab_info = connector.firefox_tab_to_tab_info(&firefox_tab);
         
-        assert_eq!(tab_info.id.0, "123");
+        assert_eq!(tab_info.id.0, firefox_tab.id);
         assert_eq!(tab_info.url, "https://example.com");
         assert_eq!(tab_info.title, "Example");
         assert!(!tab_info.is_private);
@@ -664,7 +664,7 @@ mod tests {
     fn test_firefox_bookmark_conversion() {
         let connector = FirefoxConnector::new();
         let firefox_bookmark = FirefoxBookmark {
-            id: "bookmark123".to_string(),
+            id: Uuid::new_v4(),
             url: Some("https://example.com".to_string()),
             title: "Example Bookmark".to_string(),
             parent_id: Some("folder1".to_string()),
@@ -679,7 +679,7 @@ mod tests {
         
         assert!(bookmark_info.is_some());
         let bookmark = bookmark_info.unwrap();
-        assert_eq!(bookmark.id.0, "bookmark123");
+        assert_eq!(bookmark.id.0, firefox_bookmark.id);
         assert_eq!(bookmark.url, "https://example.com");
         assert_eq!(bookmark.title, "Example Bookmark");
     }
@@ -688,7 +688,7 @@ mod tests {
     fn test_firefox_folder_not_converted() {
         let connector = FirefoxConnector::new();
         let firefox_folder = FirefoxBookmark {
-            id: "folder123".to_string(),
+            id: Uuid::new_v4(),
             url: None,
             title: "My Folder".to_string(),
             parent_id: None,

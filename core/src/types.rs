@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use chrono::{DateTime, Utc};
@@ -13,21 +15,21 @@ pub enum BrowserType {
 
 /// Tab identifier
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct TabId(pub String);
+pub struct TabId(pub Uuid);
 
 impl TabId {
     pub fn new() -> Self {
-        Self(Uuid::new_v4().to_string())
+        Self(Uuid::new_v4())
     }
 }
 
 /// Bookmark identifier
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct BookmarkId(pub String);
+pub struct BookmarkId(pub Uuid);
 
 impl BookmarkId {
     pub fn new() -> Self {
-        Self(Uuid::new_v4().to_string())
+        Self(Uuid::new_v4())
     }
 }
 
@@ -140,6 +142,14 @@ pub enum PageSourceType {
     Bookmark { browser: BrowserType, bookmark_id: BookmarkId },
     ClosedTab { history_id: HistoryId },
     ArchivedContent { archive_id: ArchiveId },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum PageRawSourceType {
+    ActiveTab,
+    Bookmark,
+    ClosedTab,
+    ArchivedContent,
 }
 
 /// Unified page information combining tabs and bookmarks

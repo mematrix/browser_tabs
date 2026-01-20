@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CdpTarget {
-    pub id: String,
+    pub id: Uuid,
     #[serde(rename = "type")]
     pub target_type: String,
     pub title: String,

@@ -907,7 +907,7 @@ impl BatchBookmarkProcessor {
     /// Detect bookmarks with similar content
     fn detect_similar_content_duplicates(&self, results: &[BookmarkContentResult]) -> Vec<DuplicateGroup> {
         let mut groups: Vec<DuplicateGroup> = Vec::new();
-        let mut processed: std::collections::HashSet<String> = std::collections::HashSet::new();
+        let mut processed: std::collections::HashSet<Uuid> = std::collections::HashSet::new();
 
         for (i, result_a) in results.iter().enumerate() {
             if processed.contains(&result_a.bookmark.id.0) {

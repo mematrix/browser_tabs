@@ -684,7 +684,7 @@ impl HistoryRepository for SqliteHistoryRepository {
                 let content_summary_json = entry_clone.page_info.content_summary
                     .as_ref()
                     .map(|s| serde_json::to_string(s).unwrap_or_default());
-                let tab_id_str = entry_clone.tab_id.as_ref().map(|t| t.0.clone());
+                let tab_id_str = entry_clone.tab_id.as_ref().map(|t| t.0.to_string());
                 
                 conn.execute(
                     r#"
@@ -923,7 +923,7 @@ fn row_to_history_entry(row: &Row) -> rusqlite::Result<HistoryEntry> {
         .unwrap_or_else(Uuid::new_v4);
     let browser_type: BrowserType = serde_json::from_str(&browser_type_json)
         .unwrap_or(BrowserType::Chrome);
-    let tab_id = tab_id_str.map(TabId);
+    let tab_id = tab_id_str.and_then(|s| Uuid::try_parse(&s).ok()).map(TabId);
     let session_info = session_info_json
         .and_then(|s| serde_json::from_str(&s).ok());
     let content_summary = content_summary_json

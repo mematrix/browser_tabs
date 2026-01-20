@@ -403,11 +403,11 @@ pub struct TabMonitorStats {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use web_page_manager_core::TabId;
+    use web_page_manager_core::{TabId, Uuid};
 
     fn create_test_tab(id: &str, url: &str, title: &str, browser_type: BrowserType) -> TabInfo {
         TabInfo {
-            id: TabId(id.to_string()),
+            id: TabId(Uuid::try_parse(id).unwrap()),
             url: url.to_string(),
             title: title.to_string(),
             favicon_url: None,

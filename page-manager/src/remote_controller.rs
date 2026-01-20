@@ -1754,7 +1754,7 @@ mod tests {
         let record = TabOperationRecord::new(
             TabOperationType::Close,
             BrowserType::Chrome,
-            TabId("test-tab".to_string()),
+            TabId(Uuid::new_v4()),
             Some("https://example.com".to_string()),
             Some("Example".to_string()),
         );
@@ -1849,7 +1849,7 @@ mod tests {
         let record = MigrationRecord::new(
             BrowserType::Chrome,
             BrowserType::Firefox,
-            TabId("source-tab".to_string()),
+            TabId(Uuid::new_v4()),
             "https://example.com".to_string(),
             "Example Page".to_string(),
         );
@@ -1877,7 +1877,7 @@ mod tests {
         assert!(!record.status.is_failed());
 
         // Test success transition
-        record.mark_success(TabId("new-tab".to_string()), true);
+        record.mark_success(TabId(Uuid::new_v4()), true);
         assert!(record.status.is_success());
         assert!(record.rollbackable);
         assert!(record.session_preserved);
@@ -1895,7 +1895,7 @@ mod tests {
             "Fallback Test".to_string(),
         );
 
-        record.mark_success_with_fallback(TabId("fallback-tab".to_string()), "url_only");
+        record.mark_success_with_fallback(TabId::new(), "url_only");
         
         assert!(record.status.is_success());
         assert!(!record.session_preserved);
@@ -1969,7 +1969,7 @@ mod tests {
         let controller = RemoteTabController::new();
         let tabs = vec![
             TabInfo {
-                id: TabId("tab1".to_string()),
+                id: TabId(Uuid::new_v4()),
                 url: "https://example1.com".to_string(),
                 title: "Example 1".to_string(),
                 favicon_url: None,
@@ -1979,7 +1979,7 @@ mod tests {
                 last_accessed: Utc::now(),
             },
             TabInfo {
-                id: TabId("tab2".to_string()),
+                id: TabId(Uuid::new_v4()),
                 url: "https://example2.com".to_string(),
                 title: "Example 2".to_string(),
                 favicon_url: None,
@@ -2012,7 +2012,7 @@ mod tests {
         let controller = RemoteTabController::new();
         let tabs = vec![
             TabInfo {
-                id: TabId("tab1".to_string()),
+                id: TabId(Uuid::new_v4()),
                 url: "https://json-test.com".to_string(),
                 title: "JSON Test".to_string(),
                 favicon_url: None,
@@ -2042,7 +2042,7 @@ mod tests {
         let controller = RemoteTabController::new();
         let tabs = vec![
             TabInfo {
-                id: TabId("tab1".to_string()),
+                id: TabId(Uuid::new_v4()),
                 url: "https://html-test.com".to_string(),
                 title: "HTML Test".to_string(),
                 favicon_url: None,
@@ -2127,7 +2127,7 @@ mod tests {
             "https://test.com".to_string(),
             "Test".to_string(),
         );
-        record.mark_success(TabId("new-tab".to_string()), false);
+        record.mark_success(TabId::new(), false);
 
         let result = MigrationResult {
             record,

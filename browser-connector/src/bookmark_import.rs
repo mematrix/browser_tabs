@@ -93,7 +93,7 @@ pub struct ChromeBookmarkRoots {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct ChromeBookmarkNode {
-    pub id: String,
+    pub id: Uuid,
     pub name: String,
     #[serde(rename = "type")]
     pub node_type: String,
@@ -650,7 +650,7 @@ impl BookmarkImporter {
         })?;
 
         let bookmarks: Vec<BookmarkInfo> = stmt.query_map([], |row| {
-            let id: i64 = row.get(0)?;
+            let id: String = row.get(0)?;
             let url: String = row.get(1)?;
             let title: String = row.get(2)?;
             let date_added: Option<i64> = row.get(3)?;
@@ -667,7 +667,7 @@ impl BookmarkImporter {
                 .collect();
 
             Ok(BookmarkInfo {
-                id: BookmarkId(id.to_string()),
+                id: BookmarkId(Uuid::try_parse(&id).unwrap()),
                 url,
                 title,
                 favicon_url: None,
@@ -880,7 +880,7 @@ mod tests {
     #[test]
     fn test_chrome_bookmark_node_counting() {
         let node = ChromeBookmarkNode {
-            id: "1".to_string(),
+            id: Uuid::new_v4(),
             name: "Test Folder".to_string(),
             node_type: "folder".to_string(),
             url: None,
@@ -888,7 +888,7 @@ mod tests {
             date_modified: None,
             children: Some(vec![
                 ChromeBookmarkNode {
-                    id: "2".to_string(),
+                    id: Uuid::new_v4(),
                     name: "Bookmark 1".to_string(),
                     node_type: "url".to_string(),
                     url: Some("https://example.com".to_string()),
@@ -897,7 +897,7 @@ mod tests {
                     children: None,
                 },
                 ChromeBookmarkNode {
-                    id: "3".to_string(),
+                    id: Uuid::new_v4(),
                     name: "Bookmark 2".to_string(),
                     node_type: "url".to_string(),
                     url: Some("https://example.org".to_string()),

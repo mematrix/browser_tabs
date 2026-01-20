@@ -1556,6 +1556,7 @@ name = "rust_lib_web_page_manager_ui"
 version = "0.1.0"
 dependencies = [
  "flutter_rust_bridge",
+ "web-page-manager-core",
 ]
 
 [[package]]
