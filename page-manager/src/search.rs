@@ -29,7 +29,7 @@ const MAX_SUGGESTIONS: usize = 10;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SearchResultItem {
     /// Unique identifier for the result
-    pub id: String,
+    pub id: Uuid,
     /// The URL of the result
     pub url: String,
     /// The title of the result
@@ -262,9 +262,7 @@ pub enum SuggestionType {
 pub struct SearchResults {
     /// The search query
     pub query: String,
-    /// Total number of results (before pagination)
-    pub total_count: usize,
-    /// The result items
+    /// The total search result items
     pub items: Vec<SearchResultItem>,
     /// Time taken to perform the search (in milliseconds)
     pub search_time_ms: u64,
@@ -273,11 +271,6 @@ pub struct SearchResults {
 }
 
 impl SearchResults {
-    /// Check if there are more results available
-    pub fn has_more(&self, offset: usize, limit: usize) -> bool {
-        offset + limit < self.total_count
-    }
-
     /// Get results grouped by source type
     pub fn group_by_source(&self) -> HashMap<SearchResultSource, Vec<&SearchResultItem>> {
         let mut groups: HashMap<SearchResultSource, Vec<&SearchResultItem>> = HashMap::new();
@@ -401,11 +394,11 @@ impl UnifiedSearchManager {
         let total_count = all_results.len();
 
         // Apply pagination
-        let items: Vec<SearchResultItem> = all_results
-            .into_iter()
-            .skip(options.offset)
-            .take(options.limit)
-            .collect();
+        // let items: Vec<SearchResultItem> = all_results
+        //     .into_iter()
+        //     .skip(options.offset)
+        //     .take(options.limit)
+        //     .collect();
 
         let search_time_ms = start_time.elapsed().as_millis() as u64;
 
@@ -414,8 +407,7 @@ impl UnifiedSearchManager {
 
         Ok(SearchResults {
             query: query.to_string(),
-            total_count,
-            items,
+            items: all_results,
             search_time_ms,
             filter: options.filter,
         })
@@ -434,7 +426,7 @@ impl UnifiedSearchManager {
             let relevance = self.calculate_relevance(query, &tab.url, &tab.title, &[]);
             if relevance > 0.0 {
                 results.push(SearchResultItem {
-                    id: tab.id.0.to_string(),
+                    id: tab.id.0.clone(),
                     url: tab.url.clone(),
                     title: tab.title.clone(),
                     favicon_url: tab.favicon_url.clone(),
@@ -460,7 +452,7 @@ impl UnifiedSearchManager {
             let relevance = self.calculate_relevance(query, &bookmark.url, &bookmark.title, &[]);
             if relevance > 0.0 {
                 results.push(SearchResultItem {
-                    id: bookmark.id.0.to_string(),
+                    id: bookmark.id.0.clone(),
                     url: bookmark.url.clone(),
                     title: bookmark.title.clone(),
                     favicon_url: bookmark.favicon_url.clone(),
@@ -497,7 +489,7 @@ impl UnifiedSearchManager {
             };
 
             SearchResultItem {
-                id: page.id.to_string(),
+                id: page.id.clone(),
                 url: page.url,
                 title: page.title,
                 favicon_url: page.favicon_url,
@@ -525,7 +517,7 @@ impl UnifiedSearchManager {
             });
 
             SearchResultItem {
-                id: entry.id.0.to_string(),
+                id: entry.id.0.clone(),
                 url: entry.page_info.url,
                 title: entry.page_info.title,
                 favicon_url: entry.page_info.favicon_url,
@@ -553,7 +545,7 @@ impl UnifiedSearchManager {
             };
 
             SearchResultItem {
-                id: archive.id.0.to_string(),
+                id: archive.id.0.clone(),
                 url: archive.url,
                 title: archive.title,
                 favicon_url: None,
@@ -775,7 +767,7 @@ mod tests {
     #[test]
     fn test_search_filter_matches() {
         let result = SearchResultItem {
-            id: "test".to_string(),
+            id: Uuid::new_v4(),
             url: "https://example.com".to_string(),
             title: "Example".to_string(),
             favicon_url: None,
@@ -810,7 +802,7 @@ mod tests {
     fn test_search_sort_order() {
         let mut results = vec![
             SearchResultItem {
-                id: "1".to_string(),
+                id: Uuid::new_v4(),
                 url: "https://a.com".to_string(),
                 title: "Zebra".to_string(),
                 favicon_url: None,
@@ -822,7 +814,7 @@ mod tests {
                 browser_type: None,
             },
             SearchResultItem {
-                id: "2".to_string(),
+                id: Uuid::new_v4(),
                 url: "https://b.com".to_string(),
                 title: "Apple".to_string(),
                 favicon_url: None,
@@ -866,10 +858,9 @@ mod tests {
     fn test_search_results_group_by_source() {
         let results = SearchResults {
             query: "test".to_string(),
-            total_count: 3,
             items: vec![
                 SearchResultItem {
-                    id: "1".to_string(),
+                    id: Uuid::new_v4(),
                     url: "https://a.com".to_string(),
                     title: "A".to_string(),
                     favicon_url: None,
@@ -881,7 +872,7 @@ mod tests {
                     browser_type: None,
                 },
                 SearchResultItem {
-                    id: "2".to_string(),
+                    id: Uuid::new_v4(),
                     url: "https://b.com".to_string(),
                     title: "B".to_string(),
                     favicon_url: None,
@@ -893,7 +884,7 @@ mod tests {
                     browser_type: None,
                 },
                 SearchResultItem {
-                    id: "3".to_string(),
+                    id: Uuid::new_v4(),
                     url: "https://c.com".to_string(),
                     title: "C".to_string(),
                     favicon_url: None,
