@@ -1,7 +1,8 @@
-use std::{cell::OnceCell, collections::HashMap};
+use std::collections::HashMap;
+use std::cell::OnceCell;
 
-use page_manager::{SearchResultItem, SearchResults};
-use web_page_manager_core::{BrowserType, PageRawSourceType, Uuid};
+use ui_ffi_common::pm::{SearchResultItem, SearchResults};
+use ui_ffi_common::pm_core::{BrowserType, PageRawSourceType, Uuid};
 
 #[derive(Debug, Clone)]
 pub struct PageSearchResults {

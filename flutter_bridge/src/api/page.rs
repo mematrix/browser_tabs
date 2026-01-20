@@ -1,4 +1,4 @@
-use web_page_manager_core::UnifiedPageInfo;
+use ui_ffi_common::pm_core::UnifiedPageInfo;
 
 pub async fn get_active_tabs() -> Vec<UnifiedPageInfo> {
     Vec::new()

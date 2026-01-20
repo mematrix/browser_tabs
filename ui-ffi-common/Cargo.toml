@@ -1,0 +1,9 @@
+[package]
+name = "ui-ffi-common"
+version = "0.1.0"
+edition = "2024"
+description = "Common FFI utilities and types for UI-related crates."
+
+[dependencies]
+web-page-manager-core = { path = "../core" }
+page-manager = { path = "../page-manager" }

@@ -1556,8 +1556,7 @@ name = "rust_lib_web_page_manager_ui"
 version = "0.1.0"
 dependencies = [
  "flutter_rust_bridge",
- "page-manager",
- "web-page-manager-core",
+ "ui-ffi-common",
 ]
 
 [[package]]
@@ -2145,6 +2144,14 @@ name = "typenum"
 version = "1.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "562d481066bde0658276a35467c4af00bdc6ee726305698a55b86e61d7ad82bb"
+
+[[package]]
+name = "ui-ffi-common"
+version = "0.1.0"
+dependencies = [
+ "page-manager",
+ "web-page-manager-core",
+]
 
 [[package]]
 name = "ui-manager"

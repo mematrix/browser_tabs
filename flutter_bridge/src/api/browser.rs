@@ -1,4 +1,4 @@
-use web_page_manager_core::{BrowserType, TabId};
+use ui_ffi_common::pm_core::{BrowserType, TabId};
 
 pub async fn close_tab(tab_id: &TabId) {}
 
