@@ -51,7 +51,7 @@ pub struct SearchResultItem {
 }
 
 /// Source type for search results
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum SearchResultSource {
     /// Result from active tabs
     ActiveTab,
@@ -337,7 +337,7 @@ impl UnifiedSearchManager {
     /// - Unified pages (database with FTS)
     /// - Tab history (database with FTS)
     /// - Archived content (database with FTS)
-    pub async fn search(&self, query: &str, options: SearchOptions) -> Result<SearchResults> {
+    pub async fn search(&self, query: &str, options: SearchOptions) -> SearchResults {
         let start_time = std::time::Instant::now();
         let query_lower = query.to_lowercase();
         let mut all_results: Vec<SearchResultItem> = Vec::new();
@@ -362,24 +362,27 @@ impl UnifiedSearchManager {
         if options.filter.source_types.is_empty() 
             || options.filter.source_types.contains(&SearchResultSource::UnifiedPage) 
         {
-            let page_results = self.search_pages(query).await?;
-            all_results.extend(page_results);
+            if let Ok(page_results) = self.search_pages(query).await {
+                all_results.extend(page_results);
+            }
         }
 
         // Search history in database
         if options.filter.source_types.is_empty() 
             || options.filter.source_types.contains(&SearchResultSource::History) 
         {
-            let history_results = self.search_history(query).await?;
-            all_results.extend(history_results);
+            if let Ok(history_results) = self.search_history(query).await {
+                all_results.extend(history_results);
+            }
         }
 
         // Search archives in database
         if options.filter.source_types.is_empty() 
             || options.filter.source_types.contains(&SearchResultSource::Archive) 
         {
-            let archive_results = self.search_archives(query).await?;
-            all_results.extend(archive_results);
+            if let Ok(archive_results) = self.search_archives(query).await {
+                all_results.extend(archive_results);
+            }
         }
 
         // Deduplicate by URL (keep highest relevance score)
@@ -405,12 +408,12 @@ impl UnifiedSearchManager {
         // Record search in history
         self.record_search(query, total_count).await;
 
-        Ok(SearchResults {
+        SearchResults {
             query: query.to_string(),
             items: all_results,
             search_time_ms,
             filter: options.filter,
-        })
+        }
     }
 
     /// Search in cached tabs

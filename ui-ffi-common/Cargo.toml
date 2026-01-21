@@ -7,3 +7,4 @@ description = "Common FFI utilities and types for UI-related crates."
 [dependencies]
 web-page-manager-core = { path = "../core" }
 page-manager = { path = "../page-manager" }
+data-access = { path = "../data-access" }

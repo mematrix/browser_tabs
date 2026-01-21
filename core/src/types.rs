@@ -13,6 +13,26 @@ pub enum BrowserType {
     Safari,
 }
 
+impl From<BrowserType> for i32 {
+    fn from(value: BrowserType) -> Self {
+        value as i32
+    }
+}
+
+impl TryFrom<i32> for BrowserType {
+    type Error = i32;
+
+    fn try_from(value: i32) -> Result<Self, Self::Error> {
+        match value {
+            0 => Ok(BrowserType::Chrome),
+            1 => Ok(BrowserType::Firefox),
+            2 => Ok(BrowserType::Edge),
+            3 => Ok(BrowserType::Safari),
+            _ => Err(value),
+        }
+    }
+}
+
 /// Tab identifier
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct TabId(pub Uuid);
@@ -150,6 +170,26 @@ pub enum PageRawSourceType {
     Bookmark,
     ClosedTab,
     ArchivedContent,
+}
+
+impl From<PageRawSourceType> for i32 {
+    fn from(value: PageRawSourceType) -> Self {
+        value as i32
+    }
+}
+
+impl TryFrom<i32> for PageRawSourceType {
+    type Error = i32;
+
+    fn try_from(value: i32) -> Result<Self, Self::Error> {
+        match value {
+            0 => Ok(PageRawSourceType::ActiveTab),
+            1 => Ok(PageRawSourceType::Bookmark),
+            2 => Ok(PageRawSourceType::ClosedTab),
+            3 => Ok(PageRawSourceType::ArchivedContent),
+            _ => Err(value),
+        }
+    }
 }
 
 /// Unified page information combining tabs and bookmarks

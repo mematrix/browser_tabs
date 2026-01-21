@@ -4,7 +4,8 @@ pub fn greet(name: String) -> String {
 }
 
 #[flutter_rust_bridge::frb(init)]
-pub fn init_app() {
+pub async fn init_app() {
     // Default utilities - feel free to customize
     flutter_rust_bridge::setup_default_user_utils();
+    ui_ffi_common::global::init_once().await;
 }
